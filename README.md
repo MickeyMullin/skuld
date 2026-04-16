@@ -44,7 +44,6 @@ skuld/
   server/           Bun + ElysiaJS API with bun:sqlite
   client/           Vite + React 19 + TypeScript
   spec.md           Full project specification
-  CLAUDE.md         Project context for Claude Code
 ```
 
 ## Data
