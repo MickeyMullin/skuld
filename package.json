@@ -1,0 +1,16 @@
+{
+  "name": "skuld",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "pnpm install && cd server && pnpm install && cd ../client && pnpm install",
+    "dev": "concurrently -n server,client -c blue,magenta \"cd server && bun run --hot src/index.ts\" \"cd client && pnpm vite --port 5199\"",
+    "dev:server": "cd server && bun run --hot src/index.ts",
+    "dev:client": "cd client && pnpm vite --port 5199"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
