@@ -13,7 +13,7 @@ Skuld replaces a manual Excel time tracker with a local web app. Log time entrie
 ## Getting Started
 
 ```bash
-git clone <your-repo-url> skuld
+git clone https://github.com/MickeyMullin/skuld.git skuld
 cd skuld
 
 # install dependencies for root, server, and client
@@ -31,7 +31,7 @@ Open `http://localhost:5199` in your browser and start logging time.
 
 **Enter time entries** with a start time, end time, note, and client code. Start and end times round to the nearest 15-minute boundary — start times floor, end times ceil — so 9:07–10:22 becomes 9:00–10:30.
 
-**Track by client.** PC and WB are built-in as quick-select buttons. Other client codes can be entered manually and will appear as options going forward.
+**Track by client.** PC and WB are built-in as quick-select options. Other client codes can be entered manually and will appear as options going forward.
 
 **See summaries** for each day (in the collapsible day headers) and for the week (in the sidebar), broken down by client with proportional progress bars.
 
