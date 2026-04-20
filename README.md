@@ -51,4 +51,4 @@ All data is stored in a local SQLite file at `server/skuld.db`. There is no clou
 
 ## License
 
-Personal project. Not published.
+MIT
