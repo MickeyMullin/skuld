@@ -17,9 +17,8 @@ export const parseDateKey = (key: string): Date => {
 
 export const startOfWeek = (d: Date): Date => {
   const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  const dow = copy.getDay()
-  const diff = (dow + 6) % 7
-  copy.setDate(copy.getDate() - diff)
+  const dow = copy.getDay() // 0 = Sunday, the week's first day
+  copy.setDate(copy.getDate() - dow)
   return copy
 }
 
@@ -30,7 +29,7 @@ export const addDays = (d: Date, n: number): Date => {
 }
 
 export const weekDays = (weekStart: Date): Date[] =>
-  Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
+  Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
 export const sameWeek = (a: Date, b: Date): boolean =>
   toDateKey(startOfWeek(a)) === toDateKey(startOfWeek(b))
@@ -43,7 +42,7 @@ export const formatDayHeader = (d: Date): string =>
   })
 
 export const formatWeekRange = (weekStart: Date): string => {
-  const end = addDays(weekStart, 4)
+  const end = addDays(weekStart, 6)
   const sameMonth = weekStart.getMonth() === end.getMonth()
   const startLabel = weekStart.toLocaleDateString(undefined, {
     month: 'short',
