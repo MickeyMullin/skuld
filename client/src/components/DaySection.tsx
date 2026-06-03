@@ -1,10 +1,12 @@
 // client/src/components/DaySection.tsx
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { Entry, EntryInput } from '../api'
 import { formatDayHeader, formatDuration, minutesBetween } from '../dates'
+import { buildTaskList } from '../tasks'
 import { EntryForm } from './EntryForm'
 import { EntryRow, clientBadgeClass } from './EntryRow'
+import { TaskCopyOverlay } from './TaskCopyOverlay'
 
 type Props = {
   date: Date
@@ -41,6 +43,8 @@ export const DaySection = ({
   const [open, setOpen] = useState(defaultOpen)
   const [adding, setAdding] = useState(defaultOpen)
   const [formKey, setFormKey] = useState(0)
+  const [copyClient, setCopyClient] = useState<string | null>(null)
+  const [copyAnchor, setCopyAnchor] = useState<DOMRect | null>(null)
 
   // auto-show form whenever the day is opened
   useEffect(() => {
@@ -51,7 +55,8 @@ export const DaySection = ({
     (acc, e) => acc + minutesBetween(e.startedAt, e.endedAt),
     0,
   )
-  const perClient = Array.from(sumByClient(entries).entries()).sort((a, b) =>
+  const byClient = sumByClient(entries)
+  const perClient = Array.from(byClient.entries()).sort((a, b) =>
     a[0].localeCompare(b[0]),
   )
 
@@ -70,25 +75,46 @@ export const DaySection = ({
           {perClient.map(([c, mins]) => {
             const clientClass = clientBadgeClass(c).replace('client-badge', '').trim()
             return (
-              <span key={c} className={`chip ${clientClass}`}>
+              <button
+                key={c}
+                type="button"
+                className={`chip ${clientClass}`}
+                title={`Copy ${c} tasks`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const header = e.currentTarget.closest('.day-header')
+                  if (header) setCopyAnchor(header.getBoundingClientRect())
+                  setCopyClient(c)
+                }}
+              >
                 <span className={`chip-code ${clientClass}`}>{c}</span>{' '}
                 {formatDuration(mins)}
-              </span>
+              </button>
             )
           })}
         </span>
       </div>
       {open && (
         <div className="day-body">
-          {entries.map((e) => (
-            <EntryRow
-              key={e.id}
-              entry={e}
-              knownClients={knownClients}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          ))}
+          {entries.map((e, i) => {
+            const prev = entries[i - 1]
+            const gap = prev ? minutesBetween(prev.endedAt, e.startedAt) : 0
+            return (
+              <Fragment key={e.id}>
+                {gap > 0 && (
+                  <div className="entry-break" role="separator">
+                    <span className="entry-break-label">{formatDuration(gap)} gap</span>
+                  </div>
+                )}
+                <EntryRow
+                  entry={e}
+                  knownClients={knownClients}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                />
+              </Fragment>
+            )
+          })}
           {adding ? (
             <EntryForm
               key={formKey}
@@ -123,6 +149,17 @@ export const DaySection = ({
             </button>
           )}
         </div>
+      )}
+      {copyClient && copyAnchor && (
+        <TaskCopyOverlay
+          client={copyClient}
+          minutes={byClient.get(copyClient) ?? 0}
+          tasks={buildTaskList(
+            entries.filter((e) => e.client === copyClient).map((e) => e.note),
+          )}
+          anchor={copyAnchor}
+          onClose={() => setCopyClient(null)}
+        />
       )}
     </div>
   )

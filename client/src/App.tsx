@@ -1,4 +1,4 @@
-// client/src/App.tsx
+// client/src/app.tsx
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {

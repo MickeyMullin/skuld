@@ -2,7 +2,7 @@
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './App'
+import { App } from './app'
 import './styles.css'
 
 // prevent browser back-navigation when pressing Backspace outside of inputs

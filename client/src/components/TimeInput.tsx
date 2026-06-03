@@ -1,6 +1,6 @@
 // client/src/components/TimeInput.tsx
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Props = {
   value: string // HH:mm, 24h
@@ -23,6 +23,13 @@ const toHHMM = (h: number, m: number): string =>
 
 export const TimeInput = ({ value, onChange, required, autoFocus }: Props) => {
   const [raw, setRaw] = useState(value)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // reflect external value changes (e.g. the add form's start time shifting when
+  //  the day's last entry is edited) — but never while the user is mid-edit
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setRaw(value)
+  }, [value])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nativeEvent = e.nativeEvent as InputEvent
@@ -30,12 +37,12 @@ export const TimeInput = ({ value, onChange, required, autoFocus }: Props) => {
 
     let val = e.target.value.replace(/[^0-9:]/g, '')
 
-    // Auto-insert colon after exactly 2 digits when typing forward
+    // auto-insert colon after exactly 2 digits when typing forward
     if (!isDeleting && /^\d{2}$/.test(val)) {
       val = val + ':'
     }
 
-    // Don't allow more than HH:mm (5 chars)
+    // don't allow more than HH:mm (5 chars)
     if (val.length > 5) return
 
     setRaw(val)
@@ -57,6 +64,7 @@ export const TimeInput = ({ value, onChange, required, autoFocus }: Props) => {
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="numeric"
       value={raw}
