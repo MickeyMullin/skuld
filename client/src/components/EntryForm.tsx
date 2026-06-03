@@ -1,6 +1,6 @@
 // client/src/components/EntryForm.tsx
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ceilQuarter,
   floorQuarter,
@@ -60,6 +60,18 @@ export const EntryForm = ({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+
+  // keep the times in sync when the surrounding context changes underneath an
+  //  already-open form; e.g. editing the day's last entry shifts the end time
+  //  that this new entry should start from
+  const initialStart = initial?.startedAt
+  const initialEnd = initial?.endedAt
+  useEffect(() => {
+    if (initialStart) setStartTime(isoToTimeString(initialStart))
+  }, [initialStart])
+  useEffect(() => {
+    if (initialEnd) setEndTime(isoToTimeString(initialEnd))
+  }, [initialEnd])
 
   const startIso = timeStringToIso(date, startTime)
   const endIso = timeStringToIso(date, endTime)

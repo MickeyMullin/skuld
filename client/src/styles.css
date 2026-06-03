@@ -268,6 +268,10 @@ input:focus {
   border-color: rgba(183, 135, 217, 0.35);
 }
 
+.chip:hover {
+  filter: brightness(1.25);
+}
+
 .chip .chip-code {
   font-weight: 600;
   margin-right: 4px;
@@ -560,4 +564,93 @@ input:focus {
   color: var(--text-dim);
   font-size: 13px;
   padding: 4px 10px;
+}
+
+/* non-contiguous break between two entries within a day */
+.entry-break {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 10px;
+}
+
+.entry-break::before,
+.entry-break::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border);
+}
+
+.entry-break-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* client task-copy overlay */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 100;
+}
+
+.copy-overlay {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 320px;
+  max-width: min(560px, 80vw);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.copy-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.copy-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.copy-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.copy-table td {
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+.copy-hrs {
+  font-family: var(--mono);
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.copy-tasks {
+  color: var(--text);
+  max-width: 480px;
+}
+
+.copy-glyph-cell {
+  text-align: center;
+}
+
+.copy-glyph {
+  font-size: 16px;
 }
