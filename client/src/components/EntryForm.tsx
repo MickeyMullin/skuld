@@ -171,13 +171,16 @@ export const EntryForm = ({
           )}
         </div>
       </div>
-      <div className="actions-row">
-        <button type="submit" className="primary" disabled={submitting}>
-          {submitting ? 'Saving…' : submitLabel}
-        </button>
-        <button type="button" onClick={onCancel} disabled={submitting}>
-          Cancel
-        </button>
+      <div className="actions-field">
+        <label aria-hidden="true">&nbsp;</label>
+        <div className="actions-row">
+          <button type="submit" className="primary" disabled={submitting}>
+            {submitting ? 'Saving…' : submitLabel}
+          </button>
+          <button type="button" onClick={onCancel} disabled={submitting}>
+            Cancel
+          </button>
+        </div>
       </div>
       {error && <div className="form-error">{error}</div>}
     </form>

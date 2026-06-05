@@ -96,14 +96,15 @@ export const App = () => {
           <button onClick={() => setWeekStart((d) => addDays(d, -7))}>← Prev</button>
           <span className="week-label">{formatWeekRange(weekStart)}</span>
           <button onClick={() => setWeekStart((d) => addDays(d, 7))}>Next →</button>
-          {!onCurrentWeek && (
-            <button
-              className="primary"
-              onClick={() => setWeekStart(startOfWeek(new Date()))}
-            >
-              Today
-            </button>
-          )}
+          <button
+            className="primary"
+            onClick={() => setWeekStart(startOfWeek(new Date()))}
+            style={{ visibility: onCurrentWeek ? 'hidden' : 'visible' }}
+            aria-hidden={onCurrentWeek}
+            tabIndex={onCurrentWeek ? -1 : undefined}
+          >
+            Today
+          </button>
         </div>
       </header>
       {error && <div className="banner-error">{error}</div>}
