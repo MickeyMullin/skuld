@@ -14,6 +14,7 @@ import {
   addDays,
   formatWeekRange,
   isSameDay,
+  parseDateParam,
   sameWeek,
   startOfWeek,
   toDateKey,
@@ -23,7 +24,10 @@ import { DaySection } from './components/DaySection'
 import { WeekSummary } from './components/WeekSummary'
 
 export const App = () => {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  const [weekStart, setWeekStart] = useState(() => {
+    const param = new URLSearchParams(window.location.search).get('week')
+    return startOfWeek(parseDateParam(param) ?? new Date())
+  })
   const [entries, setEntries] = useState<Entry[]>([])
   const [knownClients, setKnownClients] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,6 +58,13 @@ export const App = () => {
   useEffect(() => {
     loadWeek()
   }, [loadWeek])
+
+  // keep the querystring in sync with the navigated week
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('week', toDateKey(weekStart))
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
+  }, [weekStart])
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, Entry[]>()
@@ -125,7 +136,7 @@ export const App = () => {
                   entries={dayEntries}
                   knownClients={knownClients}
                   isToday={isToday}
-                  defaultOpen={isToday || (!onCurrentWeek && dayEntries.length > 0)}
+                  defaultOpen={isToday}
                   onCreate={handleCreate}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}

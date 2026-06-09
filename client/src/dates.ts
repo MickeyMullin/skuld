@@ -15,6 +15,20 @@ export const parseDateKey = (key: string): Date => {
   return new Date(y, m - 1, d)
 }
 
+// parse a date from a querystring value, accepting yyyymmdd or yyyy-mm-dd
+export const parseDateParam = (value: string | null | undefined): Date | null => {
+  if (!value) return null
+  const match = /^(\d{4})-?(\d{2})-?(\d{2})$/.exec(value.trim())
+  if (!match) return null
+  const [, y, m, d] = match.map(Number)
+  const date = new Date(y, m - 1, d)
+  // reject invalid components (e.g. month 13) that Date would roll over
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
+    return null
+  }
+  return date
+}
+
 export const startOfWeek = (d: Date): Date => {
   const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate())
   const dow = copy.getDay() // 0 = Sunday, the week's first day
