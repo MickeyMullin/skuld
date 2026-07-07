@@ -31,9 +31,11 @@ Open `http://localhost:5199` in your browser and start logging time.
 
 **Enter time entries** with a start time, end time, note, and client code. Start and end times round to the nearest 15-minute boundary — start times floor, end times ceil — so 9:07–10:22 becomes 9:00–10:30.
 
-**Track by client.** PC and WB are built-in as quick-select options. Other client codes can be entered manually and will appear as options going forward.
+**Track by client.** PC and WB are built-in as quick-select options. Other client codes can be entered manually and will appear as options going forward. Use the gear menu in the header to set a **default client** that's pre-selected on new entries (stored in your browser; clear it anytime).
 
 **See summaries** for each day (in the collapsible day headers) and for the week (in the sidebar), broken down by client with proportional progress bars.
+
+**Copy a client's day at a glance.** Click a client chip in a day header to pop up that client's total hours and a combined task list, with a one-click copy button, ready to paste into an invoice or another timesheet.
 
 **Navigate weeks** with the arrow buttons in the header. A "Today" button jumps back to the current week when you've navigated away.
 
