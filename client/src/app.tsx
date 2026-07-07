@@ -22,6 +22,13 @@ import {
 } from './dates'
 import { DaySection } from './components/DaySection'
 import { WeekSummary } from './components/WeekSummary'
+import { ConfigMenu } from './components/ConfigMenu'
+import { buildClientList } from './clients'
+import {
+  clearDefaultClient,
+  getDefaultClient,
+  setDefaultClient,
+} from './config'
 
 export const App = () => {
   const [weekStart, setWeekStart] = useState(() => {
@@ -30,8 +37,23 @@ export const App = () => {
   })
   const [entries, setEntries] = useState<Entry[]>([])
   const [knownClients, setKnownClients] = useState<string[]>([])
+  const [defaultClient, setDefaultClientState] = useState<string | null>(() =>
+    getDefaultClient(),
+  )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const clientOptions = useMemo(() => buildClientList(knownClients), [knownClients])
+
+  const handleChangeDefault = (client: string) => {
+    setDefaultClient(client)
+    setDefaultClientState(client)
+  }
+
+  const handleClearDefault = () => {
+    clearDefaultClient()
+    setDefaultClientState(null)
+  }
 
   const today = new Date()
   const days = useMemo(() => weekDays(weekStart), [weekStart])
@@ -117,6 +139,12 @@ export const App = () => {
             Today
           </button>
         </div>
+        <ConfigMenu
+          clients={clientOptions}
+          defaultClient={defaultClient}
+          onChangeDefault={handleChangeDefault}
+          onClearDefault={handleClearDefault}
+        />
       </header>
       {error && <div className="banner-error">{error}</div>}
       <main className="app-main">
@@ -135,6 +163,7 @@ export const App = () => {
                   dateKey={key}
                   entries={dayEntries}
                   knownClients={knownClients}
+                  defaultClient={defaultClient}
                   isToday={isToday}
                   defaultOpen={isToday}
                   onCreate={handleCreate}
