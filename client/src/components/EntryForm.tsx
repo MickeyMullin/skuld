@@ -8,6 +8,7 @@ import {
   timeStringToIso,
 } from '../dates'
 import { TimeInput } from './TimeInput'
+import { DEFAULT_CLIENTS, buildClientList } from '../clients'
 
 type FormValues = {
   startedAt: string
@@ -25,14 +26,7 @@ type Props = {
   onCancel: () => void
 }
 
-const DEFAULT_CLIENTS = ['PC', 'WB']
 const OTHER_SENTINEL = '__other__'
-
-const buildClientList = (known: string[]): string[] => {
-  const set = new Set<string>(DEFAULT_CLIENTS)
-  for (const c of known) set.add(c.toUpperCase())
-  return Array.from(set).sort()
-}
 
 export const EntryForm = ({
   date,

@@ -13,6 +13,7 @@ type Props = {
   dateKey: string
   entries: Entry[]
   knownClients: string[]
+  defaultClient: string | null
   isToday: boolean
   defaultOpen: boolean
   onCreate: (input: EntryInput) => Promise<void>
@@ -34,6 +35,7 @@ export const DaySection = ({
   dateKey,
   entries,
   knownClients,
+  defaultClient,
   isToday,
   defaultOpen,
   onCreate,
@@ -117,20 +119,21 @@ export const DaySection = ({
           })}
           {adding ? (
             <EntryForm
-              key={formKey}
+              key={`${formKey}-${defaultClient ?? ''}`}
               date={dateKey}
               knownClients={knownClients}
               submitLabel="Add"
-              initial={
-                lastEndIso
+              initial={{
+                ...(defaultClient ? { client: defaultClient } : {}),
+                ...(lastEndIso
                   ? {
                       startedAt: lastEndIso,
                       endedAt: new Date(
                         new Date(lastEndIso).getTime() + 60 * 60 * 1000,
                       ).toISOString(),
                     }
-                  : undefined
-              }
+                  : {}),
+              }}
               onSubmit={async (values) => {
                 await onCreate({
                   date: dateKey,

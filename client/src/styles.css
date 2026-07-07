@@ -162,6 +162,89 @@ input:focus {
   text-align: center;
 }
 
+/* config / settings menu in the header */
+.config-menu {
+  position: relative;
+}
+
+.config-trigger {
+  /* flex-center the glyph so it sits mid-button rather than on the text
+   *  baseline (where the gear's metrics render it low) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  line-height: 1;
+  /* trim vertical padding so the larger glyph doesn't grow the button */
+  padding: 4px 10px 6px 10px;
+  color: var(--text-dim);
+}
+
+.config-trigger:hover {
+  color: var(--text-bright);
+}
+
+.config-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 200;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.config-client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.config-client-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  border-color: transparent;
+  padding: 6px 10px;
+}
+
+.config-client-option:hover {
+  background: var(--surface-2);
+}
+
+.config-client-option.selected {
+  color: var(--text-bright);
+  border-color: var(--accent);
+}
+
+.config-check {
+  width: 12px;
+  color: var(--accent);
+}
+
+.config-clear {
+  align-self: flex-start;
+  font-size: 12px;
+}
+
 .app-main {
   display: grid;
   grid-template-columns: 1fr 280px;
