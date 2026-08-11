@@ -9,11 +9,10 @@ import {
   listEntriesInRange,
   updateEntry,
 } from './db'
-import { hasOverlap } from './overlap'
 import { ceilToQuarter, floorToQuarter } from './rounding'
 
-const OVERLAP_MESSAGE = 'This entry overlaps with an existing one'
-
+// overlaps are allowed through and flagged in the UI instead, so entries can be
+//  saved in any order and reconciled afterwards
 export const routes = new Elysia({ prefix: '/api' })
   .get(
     '/entries',
@@ -38,22 +37,12 @@ export const routes = new Elysia({ prefix: '/api' })
         return { error: 'End time must be after start time' }
       }
 
-      if (
-        hasOverlap({
-          date: body.date,
-          startedAt,
-          endedAt,
-        })
-      ) {
-        set.status = 409
-        return { error: OVERLAP_MESSAGE }
-      }
-
       return insertEntry({
         date: body.date,
         startedAt,
         endedAt,
         note: body.note ?? '',
+        ticket: body.ticket ?? '',
         client: body.client,
       })
     },
@@ -63,6 +52,7 @@ export const routes = new Elysia({ prefix: '/api' })
         startedAt: t.String(),
         endedAt: t.String(),
         note: t.Optional(t.String()),
+        ticket: t.Optional(t.String()),
         client: t.String(),
       }),
     },
@@ -82,6 +72,7 @@ export const routes = new Elysia({ prefix: '/api' })
         startedAt: body.startedAt ?? existing.startedAt,
         endedAt: body.endedAt ?? existing.endedAt,
         note: body.note ?? existing.note,
+        ticket: body.ticket ?? existing.ticket,
         client: body.client ?? existing.client,
       }
 
@@ -93,23 +84,12 @@ export const routes = new Elysia({ prefix: '/api' })
         return { error: 'End time must be after start time' }
       }
 
-      if (
-        hasOverlap({
-          date: merged.date,
-          startedAt,
-          endedAt,
-          excludeId: id,
-        })
-      ) {
-        set.status = 409
-        return { error: OVERLAP_MESSAGE }
-      }
-
       return updateEntry(id, {
         date: merged.date,
         startedAt,
         endedAt,
         note: merged.note,
+        ticket: merged.ticket,
         client: merged.client,
       })
     },
@@ -120,6 +100,7 @@ export const routes = new Elysia({ prefix: '/api' })
         startedAt: t.Optional(t.String()),
         endedAt: t.Optional(t.String()),
         note: t.Optional(t.String()),
+        ticket: t.Optional(t.String()),
         client: t.Optional(t.String()),
       }),
     },

@@ -8,18 +8,24 @@ import {
   timeStringToIso,
 } from '../dates'
 import { TimeInput } from './TimeInput'
+import { AutocompleteInput } from './AutocompleteInput'
 import { DEFAULT_CLIENTS, buildClientList } from '../clients'
+import type { Suggestion } from '../suggestions'
+import { normalizeTicketField } from '../tasks'
 
 type FormValues = {
   startedAt: string
   endedAt: string
   note: string
+  ticket: string
   client: string
 }
 
 type Props = {
   date: string
   knownClients: string[]
+  noteSuggestions: Suggestion[]
+  ticketSuggestions: Suggestion[]
   initial?: Partial<FormValues>
   submitLabel: string
   onSubmit: (values: FormValues) => Promise<void>
@@ -31,6 +37,8 @@ const OTHER_SENTINEL = '__other__'
 export const EntryForm = ({
   date,
   knownClients,
+  noteSuggestions,
+  ticketSuggestions,
   initial,
   submitLabel,
   onSubmit,
@@ -47,6 +55,7 @@ export const EntryForm = ({
     initial?.endedAt ? isoToTimeString(initial.endedAt) : '10:00',
   )
   const [note, setNote] = useState(initial?.note ?? '')
+  const [ticket, setTicket] = useState(initial?.ticket ?? '')
   const [client, setClient] = useState(
     isInitialKnown ? initialClient.toUpperCase() : OTHER_SENTINEL,
   )
@@ -54,6 +63,20 @@ export const EntryForm = ({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+
+  // the client field is a select plus an "Other" text input, so a pulled-in code
+  //  has to land on whichever of the two can represent it
+  const applyClient = (code: string) => {
+    const upper = code.trim().toUpperCase()
+    if (!upper) return
+    if (clients.includes(upper)) {
+      setClient(upper)
+      setOtherValue('')
+    } else {
+      setClient(OTHER_SENTINEL)
+      setOtherValue(upper)
+    }
+  }
 
   // keep the times in sync when the surrounding context changes underneath an
   //  already-open form; e.g. editing the day's last entry shifts the end time
@@ -88,6 +111,7 @@ export const EntryForm = ({
         startedAt: startIso,
         endedAt: endIso,
         note: note.trim(),
+        ticket: normalizeTicketField(ticket),
         client: finalClient,
       })
     } catch (err) {
@@ -117,17 +141,35 @@ export const EntryForm = ({
       </div>
       <div className="note-field">
         <label>Note</label>
-        <input
-          type="text"
+        <AutocompleteInput
           value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="What did you work on?"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              submitViaRef()
-            }
+          onChange={setNote}
+          // repeating a task should bring its ticket and client along
+          onAccept={(s) => {
+            setNote(s.value)
+            setTicket(s.ticket)
+            applyClient(s.client)
           }}
+          suggestions={noteSuggestions}
+          placeholder="What did you work on?"
+          onEnter={submitViaRef}
+        />
+      </div>
+      <div className="ticket-field">
+        <label>Ticket</label>
+        <AutocompleteInput
+          value={ticket}
+          onChange={setTicket}
+          // the note is left alone here — it's free text the user likely wrote
+          //  deliberately, unlike the short codes
+          onAccept={(s) => {
+            setTicket(s.value)
+            applyClient(s.client)
+          }}
+          suggestions={ticketSuggestions}
+          placeholder="Optional"
+          className="ticket-input"
+          onEnter={submitViaRef}
         />
       </div>
       <div className="client-field">

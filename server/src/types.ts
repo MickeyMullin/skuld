@@ -6,6 +6,7 @@ export type Entry = {
   startedAt: string
   endedAt: string
   note: string
+  ticket: string
   client: string
   createdAt: string
 }
@@ -16,6 +17,7 @@ export type EntryRow = {
   started_at: string
   ended_at: string
   note: string
+  ticket: string
   client: string
   created_at: string
 }
@@ -25,6 +27,7 @@ export type CreateEntryInput = {
   startedAt: string
   endedAt: string
   note?: string
+  ticket?: string
   client: string
 }
 
@@ -36,6 +39,7 @@ export const rowToEntry = (row: EntryRow): Entry => ({
   startedAt: row.started_at,
   endedAt: row.ended_at,
   note: row.note,
+  ticket: row.ticket,
   client: row.client,
   createdAt: row.created_at,
 })

@@ -86,11 +86,18 @@ button.ghost:hover {
   background: var(--surface-2);
 }
 
-button.danger-confirm {
+button.danger {
+  background: var(--danger);
   border-color: var(--danger);
-  color: var(--danger);
-  background: rgba(224, 90, 90, 0.1);
+  color: #0f1114;
+  font-weight: 600;
 }
+
+button.danger:hover {
+  background: #e97070;
+  border-color: #e97070;
+}
+
 
 input[type='text'],
 input[type='time'],
@@ -359,6 +366,12 @@ input:focus {
   filter: brightness(1.25);
 }
 
+/* after the per-client rules, so the open dialog's chip keeps its accent border */
+.chip.chip-active {
+  border-color: var(--accent);
+  filter: brightness(1.25);
+}
+
 .chip .chip-code {
   font-weight: 600;
   margin-right: 4px;
@@ -386,7 +399,7 @@ input:focus {
 
 .entry-row {
   display: grid;
-  grid-template-columns: 180px 80px 1fr auto auto;
+  grid-template-columns: 180px 80px 1fr auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 10px;
@@ -425,6 +438,14 @@ input:focus {
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-ticket {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -499,6 +520,18 @@ input:focus {
 
 .entry-form .note-field input {
   width: 100%;
+}
+
+.entry-form .ticket-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticket-input {
+  width: 110px;
+  font-family: var(--mono);
+  font-size: 12px;
 }
 
 .entry-form .client-field {
@@ -673,6 +706,18 @@ input:focus {
   border-top: 1px dashed var(--border);
 }
 
+/* double-booked time: same placement as a gap, but called out in red */
+.entry-break.overlap::before,
+.entry-break.overlap::after {
+  border-top-color: var(--danger);
+  opacity: 0.5;
+}
+
+.entry-break.overlap .entry-break-label {
+  color: var(--danger);
+  font-weight: 500;
+}
+
 .entry-break-label {
   font-family: var(--mono);
   font-size: 10px;
@@ -681,15 +726,150 @@ input:focus {
   white-space: nowrap;
 }
 
-/* client task-copy overlay */
-.overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  background: transparent;
-  z-index: 100;
+/* per-day autocomplete */
+.autocomplete {
+  position: relative;
 }
 
+.autocomplete-list {
+  position: fixed;
+  max-width: 320px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 90;
+}
+
+.autocomplete-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.autocomplete-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the source entry's other fields, so it's clear what accepting will pull in */
+.autocomplete-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.autocomplete-tab-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 1em;
+  text-align: center;
+}
+
+/* what Tab would take right now: legible, but clearly not yet chosen */
+.autocomplete-option.tab-target {
+  background: var(--surface-2);
+  color: var(--text-bright);
+}
+
+/* stepped into with the arrow keys — Enter is now armed for this row */
+.autocomplete-option.active {
+  background: rgba(91, 155, 213, 0.18);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--text-bright);
+}
+
+.autocomplete-option.active .autocomplete-tab-hint,
+.autocomplete-option.active .autocomplete-meta {
+  color: var(--text);
+}
+
+/* confirmation modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(8, 9, 11, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  min-width: 320px;
+  max-width: min(440px, 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+
+.confirm-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-entry-note {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.modal-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* client task-copy overlay */
 .copy-overlay {
+  z-index: 100;
   position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -698,6 +878,27 @@ input:focus {
   min-width: 320px;
   max-width: min(560px, 80vw);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* auto-dismiss after a copy. duration comes from an inline style set by the
+   component, so the animation and its unmount timer stay in step */
+.copy-overlay.closing {
+  animation: copy-overlay-out ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes copy-overlay-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-overlay.closing {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .copy-overlay-head {
@@ -732,6 +933,13 @@ input:focus {
   font-family: var(--mono);
   color: var(--text-bright);
   white-space: nowrap;
+}
+
+.copy-tickets {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  max-width: 160px;
 }
 
 .copy-tasks {
