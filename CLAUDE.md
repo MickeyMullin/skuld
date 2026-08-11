@@ -40,7 +40,6 @@ skuld/
       index.ts              ← Elysia app entrypoint
       db.ts                 ← SQLite setup, schema, query helpers
       rounding.ts           ← quarter-hour rounding logic
-      overlap.ts            ← overlap detection
       routes.ts             ← API route handlers
       types.ts              ← shared type definitions
   client/
@@ -64,7 +63,7 @@ skuld/
 ## Key Business Rules
 
 1. **Rounding**: Start times floor to nearest 15 min, end times ceil. Server-side, non-negotiable.
-2. **Overlap prevention**: No double-billing. Server rejects entries that overlap after rounding (HTTP 409).
+2. **Overlap flagging**: Overlaps are saved, not rejected; entries can be entered in any order and reconciled after. The day view marks double-booked time with a red "overlap" separator, mirroring the "gap" separator. The only time validation left server-side is that end must be after start (HTTP 400).
 3. **Duration**: Always computed, never stored. `(ended_at - started_at) / 60000` = minutes.
 4. **Clients**: PC and WB are the two current clients. Hardcoded as default quick-select buttons in the form, but the system supports arbitrary client codes.
 

@@ -6,6 +6,7 @@ export type Entry = {
   startedAt: string
   endedAt: string
   note: string
+  ticket: string
   client: string
   createdAt: string
 }
@@ -15,6 +16,7 @@ export type EntryInput = {
   startedAt: string
   endedAt: string
   note?: string
+  ticket?: string
   client: string
 }
 

@@ -13,6 +13,7 @@ db.exec(`
     started_at TEXT NOT NULL,
     ended_at TEXT NOT NULL,
     note TEXT NOT NULL DEFAULT '',
+    ticket TEXT NOT NULL DEFAULT '',
     client TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -20,6 +21,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
   CREATE INDEX IF NOT EXISTS idx_entries_client ON entries(client);
 `)
+
+// backfill the ticket column on databases created before it existed
+const columns = db.query<{ name: string }, []>(`PRAGMA table_info(entries)`).all()
+if (!columns.some((c) => c.name === 'ticket')) {
+  db.exec(`ALTER TABLE entries ADD COLUMN ticket TEXT NOT NULL DEFAULT ''`)
+}
 
 export const listEntriesInRange = (from: string, to: string): Entry[] => {
   const rows = db
@@ -51,14 +58,15 @@ type InsertParams = {
   startedAt: string
   endedAt: string
   note: string
+  ticket: string
   client: string
 }
 
 export const insertEntry = (params: InsertParams): Entry => {
   const result = db
-    .query<{ id: number }, [string, string, string, string, string]>(
-      `INSERT INTO entries (date, started_at, ended_at, note, client)
-       VALUES (?, ?, ?, ?, ?)
+    .query<{ id: number }, [string, string, string, string, string, string]>(
+      `INSERT INTO entries (date, started_at, ended_at, note, ticket, client)
+       VALUES (?, ?, ?, ?, ?, ?)
        RETURNING id`,
     )
     .get(
@@ -66,6 +74,7 @@ export const insertEntry = (params: InsertParams): Entry => {
       params.startedAt,
       params.endedAt,
       params.note,
+      params.ticket,
       params.client,
     )
   if (!result) throw new Error('Insert failed')
@@ -77,16 +86,17 @@ export const insertEntry = (params: InsertParams): Entry => {
 export const updateEntry = (id: number, params: InsertParams): Entry => {
   db.query<
     null,
-    [string, string, string, string, string, number]
+    [string, string, string, string, string, string, number]
   >(
     `UPDATE entries
-     SET date = ?, started_at = ?, ended_at = ?, note = ?, client = ?
+     SET date = ?, started_at = ?, ended_at = ?, note = ?, ticket = ?, client = ?
      WHERE id = ?`,
   ).run(
     params.date,
     params.startedAt,
     params.endedAt,
     params.note,
+    params.ticket,
     params.client,
     id,
   )
