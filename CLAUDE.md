@@ -5,7 +5,7 @@ Personal timesheet tracker. Named for the Norn of obligation — fitting for bil
 
 ## What This Is
 
-A local-only web app replacing a manual Excel time tracker. Two processes: a Bun/Elysia API server and a Vite/React client. Data lives in a SQLite file on disk. No auth, no deployment, no cloud — just runs on localhost.
+A local-first web app replacing a manual Excel time tracker. Two processes: a Bun/Elysia API server and a Vite/React client. Data lives in a SQLite file on disk. No auth, no external cloud dependency — but the app is also deployed on the home network, not localhost-only: a built copy runs at `skuld.home.vorheim.com` (via Caddy) from a clone at `~/app/skuld`, managed by the `com.mickey.skuld-app-server` and `com.mickey.skuld-app-client` launchd jobs. Development happens in `~/dev/skuld` (this repo); the deployed clone is separate. See `~/app/service-registry.yaml` for the full home-service inventory.
 
 ## Tech Stack
 

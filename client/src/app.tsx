@@ -29,6 +29,7 @@ import {
   getDefaultClient,
   setDefaultClient,
 } from './config'
+import { DISCOVERY_URL, isDevServer, showDiscoveryLink } from './discovery'
 
 export const App = () => {
   const [weekStart, setWeekStart] = useState(() => {
@@ -125,6 +126,12 @@ export const App = () => {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Skuld</h1>
+        {isDevServer && <span className="chip">Dev</span>}
+        {showDiscoveryLink() && (
+          <a className="discovery-link" href={DISCOVERY_URL}>
+            ↩ discovery
+          </a>
+        )}
         <div className="week-nav">
           <button onClick={() => setWeekStart((d) => addDays(d, -7))}>← Prev</button>
           <span className="week-label">{formatWeekRange(weekStart)}</span>

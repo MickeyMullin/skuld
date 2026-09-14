@@ -311,6 +311,18 @@ input:focus {
   min-width: 120px;
 }
 
+.discovery-link {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+  opacity: 0.7;
+}
+
+.discovery-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 .day-today-badge {
   font-size: 11px;
   color: var(--accent);

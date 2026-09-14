@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "skuld-client",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "client", "vite", "--port", "5199"],
+      "port": 5199
+    }
+  ]
+}

@@ -4,6 +4,8 @@ A personal timesheet tracker named for the Norse Norn of obligation—fitting fo
 
 Skuld replaces a manual Excel time tracker with a local web app. Log time entries with start/end times, assign them to clients, and see daily and weekly summaries at a glance. Times automatically round to the nearest quarter hour in your favor, and the system prevents overlapping entries so you never double-bill.
 
+Skuld is also one of the services in a small home-hosted environment alongside Luci (reporting) and Dispatch (task tracking). A built copy runs live at `skuld.home.vorheim.com`, discoverable from a central homepage at `home.vorheim.com`; the source in this repo is developed separately and deployed there when ready. When running live, the header shows a quiet link back to that homepage; a dev-server build shows a "Dev" badge in its place.
+
 ## Prerequisites
 
 - [Bun](https://bun.sh) (runtime for the API server)
