@@ -68,6 +68,19 @@ The script backs up the database, fast-forwards `master`, installs locked depend
 
 The backup runs first, before the clone is touched, so a deploy that goes wrong still has the database as it was moments earlier. It writes `~/backup/skuld-<date>-<time>.db` with `sqlite3 .backup` rather than `cp`, because in WAL mode the recent commits sit in `skuld.db-wal` until a checkpoint folds them into `skuld.db` and copying the main file alone silently loses them; `.backup` also takes a consistent snapshot of a database that is still being served. A snapshot that fails `pragma integrity_check` aborts the deploy before the running service is disturbed. The last ten snapshots are kept and older ones are pruned.
 
+## Running the dev server now that the job owns 3456
+
+`bun run dev` in `~/dev/skuld` binds 3456 for the API, which the deployed job already holds — so stop the job first and start it again when you are done:
+
+```bash
+launchctl bootout gui/$(id -u)/com.mickey.skuld
+cd ~/dev/skuld && bun run dev          # Vite on 5199, API on 3456
+
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mickey.skuld.plist
+```
+
+`launchctl kickstart -k` will not do here: `KeepAlive` restarts the job, so it has to be booted out rather than killed. While it is out, `skuld.home.vorheim.com` is down — Caddy proxies to 3456 and the dev API is the thing answering there, so the LAN hostname serves your development server, not the deployed build.
+
 ## Rollback
 
 ```bash
