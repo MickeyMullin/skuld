@@ -4,9 +4,9 @@ Follows the Ghostwolf hosting convention: `~/dev` is for development, `~/app` ho
 
 > The development server and the deployed launchd job share backend port 3456 by convention (the same way dispatch uses 4200 for both and luci uses 4100), and only the Vite dev server gets its own port, 5199. They cannot run at the same time. Stop any `bun run dev` bound to 3456 before bootstrapping the job, or launchd will fail to bind and `KeepAlive` will crash-loop it.
 
-## Migrating from the two-job deployment
+## Migrating from the two-job deployment — completed 2026-09-13
 
-Skuld was originally deployed as two launchd jobs — `com.mickey.skuld-app-server` on 3456 and `com.mickey.skuld-app-client` running a Vite **dev** server on 5199, with Caddy proxying to the latter. The server now serves the built client itself, so the client job goes away and Caddy proxies to 3456. Run this once, on Ghostwolf:
+Kept as a record of what changed; there is nothing left to run here. Skuld was originally deployed as two launchd jobs — `com.mickey.skuld-app-server` on 3456 and `com.mickey.skuld-app-client` running a Vite **dev** server on 5199, with Caddy proxying to the latter. The server now serves the built client itself, so the client job goes away and Caddy proxies to 3456. Run this once, on Ghostwolf:
 
 ```bash
 launchctl bootout gui/$(id -u)/com.mickey.skuld-app-client
@@ -14,11 +14,13 @@ launchctl bootout gui/$(id -u)/com.mickey.skuld-app-server
 rm ~/Library/LaunchAgents/com.mickey.skuld-app-client.plist ~/Library/LaunchAgents/com.mickey.skuld-app-server.plist
 ```
 
-Then follow the first-deployment steps below, skipping the clone (the clone at `~/app/skuld` and its database already exist). Point the clone's `origin` at GitHub first — it currently points at the `~/dev/skuld` working copy:
+The clone's `origin` pointed at the `~/dev/skuld` working copy rather than GitHub, and was repointed as part of the same cutover:
 
 ```bash
 git -C ~/app/skuld remote set-url origin git@github.com:MickeyMullin/skuld.git
 ```
+
+The retired plists were moved to `~/backup/retired-launchagents/`, and a local hotfix in the deployed clone that widened Vite's `allowedHosts` was saved to `~/backup/skuld-app-vite-allowedhosts-2026-09-13.patch` before being discarded — it only ever mattered while Vite served production traffic.
 
 ## First deployment
 
@@ -39,7 +41,7 @@ launchctl kickstart -k gui/$(id -u)/com.mickey.skuld
 curl http://127.0.0.1:3456/api/health
 ```
 
-Replace the `skuld.home.vorheim.com` block in `/opt/homebrew/etc/Caddyfile` with the one in `deploy/Caddyfile.snippet` — the existing block still proxies to the retired Vite dev server on 5199 — then reload Caddy. The hostname is already in local DNS alongside `dispatch`/`luci`, pointing at `192.168.13.100`; nothing to add there.
+Replace the `skuld.home.vorheim.com` block in `/opt/homebrew/etc/Caddyfile` with the one in `deploy/Caddyfile.snippet`, then reload Caddy with `caddy reload --config /opt/homebrew/etc/Caddyfile`. The hostname is already in local DNS alongside `dispatch`/`luci`, pointing at `192.168.13.100`; nothing to add there.
 
 The `~/app/service-registry.yaml` entry:
 
