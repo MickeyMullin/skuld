@@ -1,0 +1,18 @@
+# Replaces the existing skuld.home.vorheim.com block in /opt/homebrew/etc/Caddyfile.
+# The old block proxied to the Vite dev server on 5199; the deployed job now serves the
+# built client and the API from one port, 3456.
+# The tls block matches the sibling hosts: LAN DNS resolves this public certificate
+# name to Ghostwolf, so the shared home.vorheim.com pair is used rather than ACME.
+skuld.home.vorheim.com {
+    tls /Users/mickey/.config/caddy/certs/home.vorheim.com.fullchain.pem /Users/mickey/.config/caddy/certs/home.vorheim.com.key
+
+    # the app has no authentication of its own, so do not let a browser sniff a response
+    # into HTML and do not let another origin frame it
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy same-origin
+    }
+
+    reverse_proxy 127.0.0.1:3456
+}

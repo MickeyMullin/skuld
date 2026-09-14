@@ -5,11 +5,11 @@ Personal timesheet tracker. Named for the Norn of obligation — fitting for bil
 
 ## What This Is
 
-A local-first web app replacing a manual Excel time tracker. Two processes: a Bun/Elysia API server and a Vite/React client. Data lives in a SQLite file on disk. No auth, no external cloud dependency — but the app is also deployed on the home network, not localhost-only: a built copy runs at `skuld.home.vorheim.com` (via Caddy) from a clone at `~/app/skuld`, managed by the `com.mickey.skuld-app-server` and `com.mickey.skuld-app-client` launchd jobs. Development happens in `~/dev/skuld` (this repo); the deployed clone is separate. See `~/app/service-registry.yaml` for the full home-service inventory.
+A local-first web app replacing a manual Excel time tracker. A Bun/Elysia API server and a Vite/React client, as two workspaces of one Bun workspace root. In development they are two processes — the server on 3456, Vite on 5199 proxying `/api` to it. In deployment there is one process: the server serves the built client from `client/dist` alongside the API on 3456. Data lives in a SQLite file on disk. No auth, no external cloud dependency — but the app is also deployed on the home network, not localhost-only: a built copy runs at `skuld.home.vorheim.com` (via Caddy) from a clone at `~/app/skuld`, managed by the `com.mickey.skuld` launchd job. Development happens in `~/dev/skuld` (this repo); the deployed clone is separate. The dev server and the deployed job share port 3456 and so cannot run at once. See `deploy/README.md` for the deploy process and `~/app/service-registry.yaml` for the full home-service inventory.
 
 ## Tech Stack
 
-- **Server**: Bun, ElysiaJS, bun:sqlite — port 3456
+- **Server**: Bun, ElysiaJS, bun:sqlite — port 3456 (`SKULD_HOST`, `SKULD_PORT`, `SKULD_DB` override the defaults in `server/src/config.ts`)
 - **Client**: Vite, React 19, TypeScript, plain CSS — port 5199
 - **Fonts**: DM Sans (body), JetBrains Mono (times/numbers)
 
@@ -23,7 +23,7 @@ A local-first web app replacing a manual Excel time tracker. Two processes: a Bu
 - Every file starts with a path comment: `// server/src/db.ts`
 - Prefer `const` arrow functions for named function expressions
 - Prefer template literals over string concatenation
-- Use pnpm as the package manager — not npm or yarn
+- Use bun as the package manager and runtime — `bun install`, `bun run`; the workspace root owns `bun.lock`
 
 ## Project Structure
 
@@ -33,12 +33,15 @@ skuld/
   .gitignore
   CLAUDE.md
   spec.md                   ← full project spec, the source of truth
+  deploy/                   ← launchd plist, Caddy snippet, deploy script, runbook
   server/
     package.json
     tsconfig.json
     src/
       index.ts              ← Elysia app entrypoint
+      config.ts             ← env-driven host/port/db path/client dist
       db.ts                 ← SQLite setup, schema, query helpers
+      static.ts             ← serves client/dist in deployment
       rounding.ts           ← quarter-hour rounding logic
       routes.ts             ← API route handlers
       types.ts              ← shared type definitions
@@ -71,12 +74,17 @@ skuld/
 
 ```bash
 # First time
-pnpm run setup   # installs deps in root, server/, and client/
-pnpm run dev     # starts both via concurrently
+bun install      # installs both workspaces from the root
+bun run dev      # starts both via concurrently
 
 # Or individually
-cd server && bun run src/index.ts
-cd client && pnpm vite --port 5199
+bun run dev:server
+bun run dev:client
+
+bun run build      # builds the client into client/dist
+bun run start      # runs the server alone, serving that build
+bun run typecheck  # tsc --noEmit across both workspaces
+bun test server client
 ```
 
 ## Common Tasks

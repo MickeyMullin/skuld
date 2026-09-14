@@ -14,6 +14,7 @@ import { ceilToQuarter, floorToQuarter } from './rounding'
 // overlaps are allowed through and flagged in the UI instead, so entries can be
 //  saved in any order and reconciled afterwards
 export const routes = new Elysia({ prefix: '/api' })
+  .get('/health', () => ({ ok: true, service: 'skuld', time: new Date().toISOString() }))
   .get(
     '/entries',
     ({ query }) => {

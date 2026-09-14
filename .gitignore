@@ -1,5 +1,17 @@
 node_modules
-*.db
-*.db-journal
 dist
 .DS_Store
+
+# secrets and machine-local configuration
+.env
+.env.*
+.claude/settings.local.json
+
+# runtime data: the live database never belongs in the repository
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# launchd writes these into the deployed working tree
+*.log

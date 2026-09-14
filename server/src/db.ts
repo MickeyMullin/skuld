@@ -1,9 +1,10 @@
 // server/src/db.ts
 
 import { Database } from 'bun:sqlite'
+import { config } from './config'
 import { rowToEntry, type Entry, type EntryRow } from './types'
 
-export const db = new Database('skuld.db', { create: true })
+export const db = new Database(config.dbPath, { create: true })
 
 // TODO: db.exec deprecated; update to db.run
 db.exec(`

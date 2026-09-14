@@ -8,9 +8,7 @@ Skuld is also one of the services in a small home-hosted environment alongside L
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) (runtime for the API server)
-- [Node.js](https://nodejs.org) 18+ (runtime for the Vite dev server)
-- [pnpm](https://pnpm.io)
+- [Bun](https://bun.sh) (runtime and package manager for both workspaces)
 
 ## Getting Started
 
@@ -18,16 +16,25 @@ Skuld is also one of the services in a small home-hosted environment alongside L
 git clone https://github.com/MickeyMullin/skuld.git skuld
 cd skuld
 
-# install dependencies for root, server, and client
-pnpm run setup
+# install dependencies for both workspaces
+bun install
 
 # start both servers
-pnpm run dev
+bun run dev
 ```
 
 The API server runs on `http://localhost:3456` and the client on `http://localhost:5199`.
 
 Open `http://localhost:5199` in your browser and start logging time.
+
+To run the way it is deployed — one process, the API and the built client together on 3456 — build first and start the server alone:
+
+```bash
+bun run build
+bun run start
+```
+
+Deployment to `skuld.home.vorheim.com` is documented in [deploy/README.md](deploy/README.md).
 
 ## How It Works
 

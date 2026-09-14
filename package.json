@@ -3,14 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
-    "setup": "pnpm install && cd server && pnpm install && cd ../client && pnpm install",
-    "dev": "concurrently -n server,client -c blue,magenta \"cd server && bun run --hot src/index.ts\" \"cd client && pnpm vite --port 5199\"",
-    "dev:server": "cd server && bun run --hot src/index.ts",
-    "dev:client": "cd client && pnpm vite --port 5199"
+    "dev": "concurrently -n server,client -c blue,magenta \"bun run --cwd server dev\" \"bun run --cwd client dev\"",
+    "dev:server": "bun run --cwd server dev",
+    "dev:client": "bun run --cwd client dev",
+    "build": "bun run --cwd client build",
+    "start": "bun run --cwd server start",
+    "typecheck": "bun run --cwd server typecheck && bun run --cwd client typecheck",
+    "test": "bun test server client"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
-  },
-  "packageManager": "pnpm@9.0.0"
+  }
 }
