@@ -1,10 +1,15 @@
 // client/src/components/WeekSummary.tsx
 
-import type { Entry } from '../api'
+import { useCallback, useState } from 'react'
+import type { Client, Entry } from '../api'
 import { formatDuration, minutesBetween } from '../dates'
+import { buildWeekExport } from '../weekExport'
+import { WEEK_EXPORT_KEY, WeekExportOverlay } from './WeekExportOverlay'
 
 type Props = {
+  days: Date[]
   entries: Entry[]
+  clients: Client[]
 }
 
 const clientColorClass = (client: string): string => {
@@ -14,7 +19,10 @@ const clientColorClass = (client: string): string => {
   return 'client-other'
 }
 
-export const WeekSummary = ({ entries }: Props) => {
+export const WeekSummary = ({ days, entries, clients }: Props) => {
+  const [exportAnchor, setExportAnchor] = useState<DOMRect | null>(null)
+  const closeExport = useCallback(() => setExportAnchor(null), [])
+
   const perClient = new Map<string, number>()
   let total = 0
   for (const e of entries) {
@@ -28,7 +36,26 @@ export const WeekSummary = ({ entries }: Props) => {
   return (
     <aside className="week-summary">
       <div>
-        <h3 className="summary-title">Week Total</h3>
+        <div className="summary-head">
+          <h3 className="summary-title">Week Total</h3>
+          <button
+            type="button"
+            className={`chip chip-export${exportAnchor ? ' chip-active' : ''}`}
+            data-copy-key={WEEK_EXPORT_KEY}
+            title="Export the week's tasks"
+            onClick={(e) => {
+              const box = e.currentTarget.closest('.week-summary')
+              const button = e.currentTarget.getBoundingClientRect()
+              const card = box?.getBoundingClientRect()
+              // below the button, flush with the card's right edge
+              setExportAnchor((prev) =>
+                prev ? null : card ? new DOMRect(card.x, button.y, card.width, button.height) : button,
+              )
+            }}
+          >
+            Export
+          </button>
+        </div>
         <div className="summary-total">{formatDuration(total)}</div>
       </div>
       {rows.length > 0 && (
@@ -48,6 +75,13 @@ export const WeekSummary = ({ entries }: Props) => {
             </div>
           ))}
         </div>
+      )}
+      {exportAnchor && (
+        <WeekExportOverlay
+          week={buildWeekExport(days, entries, clients)}
+          anchor={exportAnchor}
+          onClose={closeExport}
+        />
       )}
     </aside>
   )

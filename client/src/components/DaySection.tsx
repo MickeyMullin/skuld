@@ -1,8 +1,10 @@
 // client/src/components/DaySection.tsx
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import type { ClientProject, Entry, EntryInput } from '../api'
+import type { Client, ClientProject, Entry, EntryInput, Project } from '../api'
+import { clientLabel, clientRank } from '../clients'
 import { formatDayHeader, formatDuration, minutesBetween } from '../dates'
+import { exportProjectLabel } from '../projects'
 import { buildProjectNames, buildTaskList, buildTicketList } from '../tasks'
 import { buildNoteSuggestions, buildTicketSuggestions } from '../suggestions'
 import { EntryForm } from './EntryForm'
@@ -13,10 +15,11 @@ type Props = {
   date: Date
   dateKey: string
   entries: Entry[]
-  knownClients: string[]
-  knownProjects: ClientProject[]
+  clients: Client[]
+  projects: Project[]
   defaultClient: string | null
   defaultProject: ClientProject | null
+  preferredStartTime: string
   isToday: boolean
   defaultOpen: boolean
   onCreate: (input: EntryInput) => Promise<void>
@@ -51,10 +54,11 @@ export const DaySection = ({
   date,
   dateKey,
   entries,
-  knownClients,
-  knownProjects,
+  clients,
+  projects,
   defaultClient,
   defaultProject,
+  preferredStartTime,
   isToday,
   defaultOpen,
   onCreate,
@@ -83,8 +87,9 @@ export const DaySection = ({
     0,
   )
   const byClient = sumByClient(entries)
-  const perClient = Array.from(byClient.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0]),
+  // in configured client order, the same order the week export lists them
+  const perClient = Array.from(byClient.entries()).sort(
+    (a, b) => clientRank(clients, a[0]) - clientRank(clients, b[0]) || a[0].localeCompare(b[0]),
   )
 
   const breaks = breaksBefore(entries)
@@ -146,9 +151,10 @@ export const DaySection = ({
                 )}
                 <EntryRow
                   entry={e}
-                  knownClients={knownClients}
-                  knownProjects={knownProjects}
+                  clients={clients}
+                  projects={projects}
                   defaultProject={defaultProject}
+                  preferredStartTime={preferredStartTime}
                   noteSuggestions={noteSuggestions}
                   ticketSuggestions={ticketSuggestions}
                   onUpdate={onUpdate}
@@ -161,9 +167,10 @@ export const DaySection = ({
             <EntryForm
               key={`${formKey}-${defaultClient ?? ''}-${defaultProject?.client ?? ''}-${defaultProject?.project ?? ''}`}
               date={dateKey}
-              knownClients={knownClients}
-              knownProjects={knownProjects}
+              clients={clients}
+              projects={projects}
               defaultProject={defaultProject}
+              preferredStartTime={preferredStartTime}
               noteSuggestions={noteSuggestions}
               ticketSuggestions={ticketSuggestions}
               submitLabel="Add"
@@ -210,8 +217,11 @@ export const DaySection = ({
           tasks={buildTaskList(
             entries.filter((e) => e.client === copyClient).map((e) => e.note),
           )}
-          projects={buildProjectNames(
-            entries.filter((e) => e.client === copyClient).map((e) => e.project),
+          project={exportProjectLabel(
+            clientLabel(clients, copyClient),
+            buildProjectNames(
+              entries.filter((e) => e.client === copyClient).map((e) => e.project),
+            ),
           )}
           anchor={copyAnchor}
           onClose={closeCopy}

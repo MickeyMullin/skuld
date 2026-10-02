@@ -1,7 +1,7 @@
 // client/src/components/EntryRow.tsx
 
 import { useState } from 'react'
-import type { ClientProject, Entry } from '../api'
+import type { Client, ClientProject, Entry, Project } from '../api'
 import { formatDuration, formatTime, minutesBetween } from '../dates'
 import { ConfirmDialog } from './ConfirmDialog'
 import { EntryForm } from './EntryForm'
@@ -17,9 +17,10 @@ export const clientBadgeClass = (client: string): string => {
 
 type Props = {
   entry: Entry
-  knownClients: string[]
-  knownProjects: ClientProject[]
+  clients: Client[]
+  projects: Project[]
   defaultProject: ClientProject | null
+  preferredStartTime: string
   noteSuggestions: Suggestion[]
   ticketSuggestions: Suggestion[]
   onUpdate: (id: number, patch: Partial<Entry>) => Promise<void>
@@ -28,9 +29,10 @@ type Props = {
 
 export const EntryRow = ({
   entry,
-  knownClients,
-  knownProjects,
+  clients,
+  projects,
   defaultProject,
+  preferredStartTime,
   noteSuggestions,
   ticketSuggestions,
   onUpdate,
@@ -44,9 +46,10 @@ export const EntryRow = ({
       <div className="entry-row editing" style={{ display: 'block' }}>
         <EntryForm
           date={entry.date}
-          knownClients={knownClients}
-          knownProjects={knownProjects}
+          clients={clients}
+          projects={projects}
           defaultProject={defaultProject}
+          preferredStartTime={preferredStartTime}
           noteSuggestions={noteSuggestions}
           ticketSuggestions={ticketSuggestions}
           initial={{

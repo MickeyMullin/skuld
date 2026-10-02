@@ -2,15 +2,35 @@
 
 import { Elysia, t } from 'elysia'
 import {
-  deleteEntry,
-  getEntryById,
-  insertEntry,
+  createClient,
+  createProject,
+  ensureClient,
+  ensureProject,
+  getSettings,
   listClients,
-  listEntriesInRange,
   listProjects,
-  updateEntry,
-} from './db'
+  reorderClients,
+  reorderProjects,
+  updateClient,
+  updateProject,
+  updateSettings,
+} from './catalog'
+import { deleteEntry, getEntryById, insertEntry, listEntriesInRange, updateEntry } from './db'
 import { ceilToQuarter, floorToQuarter } from './rounding'
+import { isRequestError } from './types'
+
+// runs a handler, turning a RequestError into its status and message
+const guard = <T,>(set: { status?: number | string }, fn: () => T): T | { error: string } => {
+  try {
+    return fn()
+  } catch (err) {
+    if (!isRequestError(err)) throw err
+    set.status = err.status
+    return { error: err.message }
+  }
+}
+
+const idParams = t.Object({ id: t.Numeric() })
 
 // overlaps are allowed through and flagged in the UI instead, so entries can be
 //  saved in any order and reconciled afterwards
@@ -39,14 +59,17 @@ export const routes = new Elysia({ prefix: '/api' })
         return { error: 'End time must be after start time' }
       }
 
-      return insertEntry({
-        date: body.date,
-        startedAt,
-        endedAt,
-        note: body.note ?? '',
-        ticket: body.ticket ?? '',
-        client: body.client,
-        project: body.project ?? '',
+      return guard(set, () => {
+        const client = ensureClient(body.client)
+        return insertEntry({
+          date: body.date,
+          startedAt,
+          endedAt,
+          note: body.note ?? '',
+          ticket: body.ticket ?? '',
+          client,
+          project: ensureProject(client, body.project ?? ''),
+        })
       })
     },
     {
@@ -89,14 +112,17 @@ export const routes = new Elysia({ prefix: '/api' })
         return { error: 'End time must be after start time' }
       }
 
-      return updateEntry(id, {
-        date: merged.date,
-        startedAt,
-        endedAt,
-        note: merged.note,
-        ticket: merged.ticket,
-        client: merged.client,
-        project: merged.project,
+      return guard(set, () => {
+        const client = ensureClient(merged.client)
+        return updateEntry(id, {
+          date: merged.date,
+          startedAt,
+          endedAt,
+          note: merged.note,
+          ticket: merged.ticket,
+          client,
+          project: ensureProject(client, merged.project),
+        })
       })
     },
     {
@@ -128,4 +154,47 @@ export const routes = new Elysia({ prefix: '/api' })
     },
   )
   .get('/clients', () => listClients())
+  .post('/clients', ({ body, set }) => guard(set, () => createClient(body)), {
+    body: t.Object({
+      code: t.String(),
+      name: t.Optional(t.String()),
+      active: t.Optional(t.Boolean()),
+    }),
+  })
+  .put('/clients/order', ({ body }) => reorderClients(body.ids), {
+    body: t.Object({ ids: t.Array(t.Integer()) }),
+  })
+  .put('/clients/:id', ({ params, body, set }) => guard(set, () => updateClient(params.id, body)), {
+    params: idParams,
+    body: t.Object({
+      code: t.Optional(t.String()),
+      name: t.Optional(t.String()),
+      active: t.Optional(t.Boolean()),
+    }),
+  })
   .get('/projects', () => listProjects())
+  .post('/projects', ({ body, set }) => guard(set, () => createProject(body)), {
+    body: t.Object({
+      clientId: t.Integer(),
+      name: t.String(),
+      active: t.Optional(t.Boolean()),
+    }),
+  })
+  .put('/projects/order', ({ body }) => reorderProjects(body.clientId, body.ids), {
+    body: t.Object({ clientId: t.Integer(), ids: t.Array(t.Integer()) }),
+  })
+  .put(
+    '/projects/:id',
+    ({ params, body, set }) => guard(set, () => updateProject(params.id, body)),
+    {
+      params: idParams,
+      body: t.Object({
+        name: t.Optional(t.String()),
+        active: t.Optional(t.Boolean()),
+      }),
+    },
+  )
+  .get('/settings', () => getSettings())
+  .put('/settings', ({ body, set }) => guard(set, () => updateSettings(body)), {
+    body: t.Object({ preferredStartTime: t.Optional(t.String()) }),
+  })

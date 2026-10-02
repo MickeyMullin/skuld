@@ -5,13 +5,14 @@ import {
   ceilQuarter,
   floorQuarter,
   isoToTimeString,
+  shiftTimeString,
   timeStringToIso,
 } from '../dates'
 import { TimeInput } from './TimeInput'
 import { AutocompleteInput } from './AutocompleteInput'
-import { DEFAULT_CLIENTS, buildClientList } from '../clients'
-import { buildProjectList, defaultProjectFor, projectsForClient } from '../projects'
-import type { ClientProject } from '../api'
+import { clientCodeOptions } from '../clients'
+import { defaultProjectFor, projectOptions } from '../projects'
+import type { Client, ClientProject, Project } from '../api'
 import type { Suggestion } from '../suggestions'
 import { normalizeTicketField } from '../tasks'
 
@@ -26,9 +27,11 @@ type FormValues = {
 
 type Props = {
   date: string
-  knownClients: string[]
-  knownProjects: ClientProject[]
+  clients: Client[]
+  projects: Project[]
   defaultProject: ClientProject | null
+  // HH:mm a new entry starts at when nothing earlier in the day sets it
+  preferredStartTime: string
   noteSuggestions: Suggestion[]
   ticketSuggestions: Suggestion[]
   initial?: Partial<FormValues>
@@ -41,9 +44,10 @@ const OTHER_SENTINEL = '__other__'
 
 export const EntryForm = ({
   date,
-  knownClients,
-  knownProjects,
+  clients,
+  projects,
   defaultProject,
+  preferredStartTime,
   noteSuggestions,
   ticketSuggestions,
   initial,
@@ -51,29 +55,29 @@ export const EntryForm = ({
   onSubmit,
   onCancel,
 }: Props) => {
-  const clients = buildClientList(knownClients)
-  const initialClient = initial?.client ?? DEFAULT_CLIENTS[0]
-  const isInitialKnown = clients.includes(initialClient.toUpperCase())
-  const projectList = buildProjectList(knownProjects)
+  // without a default client a new entry starts with none picked, so choosing
+  //  one is a deliberate act rather than accepting whichever sorts first
+  const initialClient = (initial?.client ?? '').trim().toUpperCase()
+  const isCatalogClient = (code: string) => clients.some((c) => c.code === code)
+  const isCatalogProject = (forClient: string, name: string) =>
+    projects.some((p) => p.client === forClient && p.name === name)
+  const isInitialKnown = !initialClient || isCatalogClient(initialClient)
   // an existing entry keeps whatever project it has, including none; a new one
   //  starts on the configured default when that belongs to its client
   const initialProject =
     initial?.project ?? defaultProjectFor(defaultProject, initialClient)
-  const initialProjectOptions = projectsForClient(projectList, initialClient)
   const isInitialProjectKnown =
-    !initialProject || initialProjectOptions.includes(initialProject)
+    !initialProject || isCatalogProject(initialClient, initialProject)
 
   const [startTime, setStartTime] = useState(
-    initial?.startedAt ? isoToTimeString(initial.startedAt) : '09:00',
+    initial?.startedAt ? isoToTimeString(initial.startedAt) : preferredStartTime,
   )
   const [endTime, setEndTime] = useState(
-    initial?.endedAt ? isoToTimeString(initial.endedAt) : '10:00',
+    initial?.endedAt ? isoToTimeString(initial.endedAt) : shiftTimeString(preferredStartTime, 60),
   )
   const [note, setNote] = useState(initial?.note ?? '')
   const [ticket, setTicket] = useState(initial?.ticket ?? '')
-  const [client, setClient] = useState(
-    isInitialKnown ? initialClient.toUpperCase() : OTHER_SENTINEL,
-  )
+  const [client, setClient] = useState(isInitialKnown ? initialClient : OTHER_SENTINEL)
   const [otherValue, setOtherValue] = useState(isInitialKnown ? '' : initialClient)
   const [project, setProject] = useState(
     isInitialProjectKnown ? initialProject : OTHER_SENTINEL,
@@ -86,13 +90,20 @@ export const EntryForm = ({
   const formRef = useRef<HTMLFormElement>(null)
 
   const effectiveClient = client === OTHER_SENTINEL ? otherValue.trim().toUpperCase() : client
-  const projectOptions = projectsForClient(projectList, effectiveClient)
+  // active entries in configured order, plus whatever is currently picked, so an
+  //  older entry on an inactive client or project still shows its own
+  const clientCodes = clientCodeOptions(clients, client === OTHER_SENTINEL ? '' : client)
+  const projectNames = projectOptions(
+    projects,
+    effectiveClient,
+    project === OTHER_SENTINEL ? '' : project,
+  )
 
   // projects belong to a client, so the project field is likewise a select plus
   //  an "Other" text input, and a pulled-in name lands on whichever fits
   const applyProject = (forClient: string, name: string) => {
     const trimmed = name.trim()
-    if (!trimmed || projectsForClient(projectList, forClient).includes(trimmed)) {
+    if (!trimmed || isCatalogProject(forClient, trimmed)) {
       setProject(trimmed)
       setOtherProject('')
     } else {
@@ -107,7 +118,7 @@ export const EntryForm = ({
   const applyClient = (code: string, projectName: string) => {
     const upper = code.trim().toUpperCase()
     if (!upper) return
-    if (clients.includes(upper)) {
+    if (isCatalogClient(upper)) {
       setClient(upper)
       setOtherValue('')
     } else {
@@ -228,6 +239,7 @@ export const EntryForm = ({
         <div className="client-select-row">
           <select
             value={client}
+            required
             onChange={(e) => changeClient(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -236,7 +248,10 @@ export const EntryForm = ({
               }
             }}
           >
-            {clients.map((c) => (
+            <option value="" disabled hidden>
+              Select…
+            </option>
+            {clientCodes.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
             <option value={OTHER_SENTINEL}>Other…</option>
@@ -251,6 +266,8 @@ export const EntryForm = ({
                 if (project !== OTHER_SENTINEL) setProject('')
               }}
               placeholder="Code"
+              maxLength={3}
+              required
               className="client-other-input"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -276,7 +293,7 @@ export const EntryForm = ({
             }}
           >
             <option value="">None</option>
-            {projectOptions.map((p) => (
+            {projectNames.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
             <option value={OTHER_SENTINEL}>Other…</option>

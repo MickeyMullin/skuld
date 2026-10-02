@@ -109,6 +109,13 @@ export const isoToTimeString = (iso: string): string => {
 
 export const formatTime = (iso: string): string => isoToTimeString(iso)
 
+// an HH:mm time moved by some minutes, wrapping past midnight
+export const shiftTimeString = (timeStr: string, minutes: number): string => {
+  const [h, m] = timeStr.split(':').map(Number)
+  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 export const isSameDay = (a: Date, b: Date): boolean =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&

@@ -7,10 +7,13 @@ import {
   fetchClients,
   fetchEntries,
   fetchProjects,
+  fetchSettings,
   updateEntry as apiUpdateEntry,
+  type Client,
   type ClientProject,
   type Entry,
   type EntryInput,
+  type Project,
 } from './api'
 import {
   addDays,
@@ -25,8 +28,8 @@ import {
 import { DaySection } from './components/DaySection'
 import { WeekSummary } from './components/WeekSummary'
 import { ConfigMenu } from './components/ConfigMenu'
-import { buildClientList } from './clients'
-import { addProject, buildProjectList } from './projects'
+import { clientCodeOptions } from './clients'
+import { upgradeDefaultProject } from './projects'
 import {
   clearDefaultClient,
   clearDefaultProject,
@@ -43,8 +46,9 @@ export const App = () => {
     return startOfWeek(parseDateParam(param) ?? new Date())
   })
   const [entries, setEntries] = useState<Entry[]>([])
-  const [knownClients, setKnownClients] = useState<string[]>([])
-  const [knownProjects, setKnownProjects] = useState<ClientProject[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [preferredStartTime, setPreferredStartTime] = useState('09:00')
   const [defaultClient, setDefaultClientState] = useState<string | null>(() =>
     getDefaultClient(),
   )
@@ -54,8 +58,7 @@ export const App = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const clientOptions = useMemo(() => buildClientList(knownClients), [knownClients])
-  const projectOptions = useMemo(() => buildProjectList(knownProjects), [knownProjects])
+  const clientOptions = useMemo(() => clientCodeOptions(clients), [clients])
 
   // the default project is chosen from the default client's own projects, so
   //  it can't outlive a change of client; leaving it would quietly keep
@@ -87,28 +90,42 @@ export const App = () => {
   const fromKey = toDateKey(days[0])
   const toKey = toDateKey(days[days.length - 1])
 
+  // saving an entry can add a client or project to the catalog, so it's
+  //  re-read after each save as well as with the week
+  const loadCatalog = useCallback(async () => {
+    const [clientList, projectList] = await Promise.all([fetchClients(), fetchProjects()])
+    setClients(clientList)
+    setProjects(projectList)
+  }, [])
+
   const loadWeek = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [list, clients, projects] = await Promise.all([
+      const [list, settings] = await Promise.all([
         fetchEntries(fromKey, toKey),
-        fetchClients(),
-        fetchProjects(),
+        fetchSettings(),
+        loadCatalog(),
       ])
       setEntries(list)
-      setKnownClients(clients)
-      setKnownProjects(projects)
+      setPreferredStartTime(settings.preferredStartTime)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
-  }, [fromKey, toKey])
+  }, [fromKey, toKey, loadCatalog])
 
   useEffect(() => {
     loadWeek()
   }, [loadWeek])
+
+  // a default project saved while names still carried their client's prefix
+  //  is moved onto the bare name it was migrated to
+  useEffect(() => {
+    const upgraded = upgradeDefaultProject(defaultProject, clients, projects)
+    if (upgraded) handleChangeDefaultProject(upgraded)
+  }, [defaultProject, clients, projects])
 
   // keep the querystring in sync with the navigated week
   useEffect(() => {
@@ -130,19 +147,23 @@ export const App = () => {
     return map
   }, [entries])
 
+  // the entry itself is already saved, so a failed re-read isn't the form's error
+  const refreshCatalog = () => {
+    loadCatalog().catch((err) =>
+      setError(err instanceof Error ? err.message : 'Failed to reload clients'),
+    )
+  }
+
   const handleCreate = async (input: EntryInput) => {
     const created = await createEntry(input)
     setEntries((prev) => [...prev, created])
-    if (!knownClients.includes(created.client)) {
-      setKnownClients((prev) => [...prev, created.client].sort())
-    }
-    setKnownProjects((prev) => addProject(prev, created.client, created.project))
+    refreshCatalog()
   }
 
   const handleUpdate = async (id: number, patch: Partial<Entry>) => {
     const updated = await apiUpdateEntry(id, patch)
     setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)))
-    setKnownProjects((prev) => addProject(prev, updated.client, updated.project))
+    refreshCatalog()
   }
 
   const handleDelete = async (id: number) => {
@@ -178,9 +199,10 @@ export const App = () => {
         </div>
         <ConfigMenu
           clients={clientOptions}
-          projects={projectOptions}
+          projects={projects}
           defaultClient={defaultClient}
           defaultProject={defaultProject}
+          settingsHref={`/settings?week=${toDateKey(weekStart)}`}
           onChangeDefault={handleChangeDefault}
           onChangeDefaultProject={handleChangeDefaultProject}
           onClearDefault={handleClearDefault}
@@ -203,10 +225,11 @@ export const App = () => {
                   date={d}
                   dateKey={key}
                   entries={dayEntries}
-                  knownClients={knownClients}
-                  knownProjects={knownProjects}
+                  clients={clients}
+                  projects={projects}
                   defaultClient={defaultClient}
                   defaultProject={defaultProject}
+                  preferredStartTime={preferredStartTime}
                   isToday={isToday}
                   defaultOpen={isToday}
                   onCreate={handleCreate}
@@ -217,7 +240,7 @@ export const App = () => {
             })
           )}
         </div>
-        <WeekSummary entries={entries} />
+        <WeekSummary days={days} entries={entries} clients={clients} />
       </main>
     </div>
   )

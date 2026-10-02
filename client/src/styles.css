@@ -263,6 +263,42 @@ input:focus {
   margin: 2px 0;
 }
 
+/* default client and default project sit side by side, split by a rule */
+.config-columns {
+  display: flex;
+  align-items: stretch;
+}
+
+.config-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-column .config-section-label,
+.config-column .config-clear {
+  white-space: nowrap;
+}
+
+.config-column + .config-column {
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+
+.config-advanced {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+
+.config-advanced:hover {
+  color: var(--text-bright);
+}
+
 /* project names are prose, not codes, so they drop the mono client styling */
 .config-project-option {
   font-family: inherit;
@@ -662,6 +698,19 @@ input:focus {
   gap: 16px;
 }
 
+.summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* a chip like the day's client pills, minus the client tint */
+.chip.chip-export {
+  color: var(--text-bright);
+  cursor: pointer;
+}
+
 .summary-title {
   font-size: 11px;
   text-transform: uppercase;
@@ -1021,4 +1070,196 @@ input:focus {
 
 .copy-glyph {
   font-size: 16px;
+}
+
+.copy-overlay-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.copy-overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* the week export is a whole table, so it gets more room than a day's row */
+.copy-overlay.week-export {
+  max-width: min(960px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.copy-date {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.week-export .copy-hrs .client-badge {
+  margin-left: 6px;
+}
+
+/* a rule between days, not between one day's clients */
+.week-export .week-export-day-start td,
+.week-export .week-export-blank td {
+  border-top: 1px solid var(--border);
+}
+
+.week-export tbody tr:first-child td {
+  border-top: none;
+}
+
+/* settings page */
+.settings-title {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.settings-back {
+  margin-left: auto;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.settings-back:hover {
+  color: var(--text-bright);
+}
+
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+  max-width: 820px;
+}
+
+.settings-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-heading {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.settings-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-field label,
+.settings-filter label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.settings-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-status {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.settings-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.settings-table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-table td {
+  padding: 4px 8px;
+  vertical-align: middle;
+}
+
+.settings-table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-table tbody tr.dragging {
+  opacity: 0.4;
+}
+
+.settings-table tfoot td {
+  padding-top: 10px;
+}
+
+.settings-thumb-cell,
+.settings-active-cell,
+.settings-row-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.settings-thumb {
+  cursor: grab;
+  padding: 2px 6px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.settings-thumb:disabled {
+  cursor: default;
+  opacity: 0.25;
+}
+
+.settings-table input[type='text'] {
+  width: 100%;
+}
+
+.settings-table input.settings-code-input {
+  width: 5em;
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.settings-table input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
 }

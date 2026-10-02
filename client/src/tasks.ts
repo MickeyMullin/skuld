@@ -58,19 +58,24 @@ export const decimalHours = (minutes: number): string => (minutes / 60).toFixed(
 const HIDDEN_COLUMNS = 2
 
 // tab-separated row for the clipboard, laid out as the spreadsheet's
-//  Hours (B), Task (C), <hidden D, E>, Ticket# (F), then the project appended
-//  after it. the ticket and project cells are always present, empty or not, so
-//  pasted rows line up
+//  Hours (B), Task (C), <hidden D, E>, Ticket# (F), then the client-and-project
+//  label appended after it. the ticket and label cells are always present, empty
+//  or not, so pasted rows line up. hours default to the fixed 2-decimal form
 export const taskCopyRow = (
   minutes: number,
   tasks: string[],
   tickets: string[],
-  projects: string[],
+  projectLabel: string,
+  hours: (minutes: number) => string = decimalHours,
 ): string =>
   [
-    decimalHours(minutes),
+    hours(minutes),
     taskListString(tasks),
     ...Array(HIDDEN_COLUMNS).fill(''),
     ticketListString(tickets),
-    projects.join(', '),
+    projectLabel,
   ].join('\t')
+
+// the number of cells taskCopyRow emits (hours, tasks, ticket, label, and the
+//  hidden ones), for padding out a blank row to match
+export const TASK_COPY_CELLS = 4 + HIDDEN_COLUMNS

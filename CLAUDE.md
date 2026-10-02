@@ -40,7 +40,9 @@ skuld/
     src/
       index.ts              ← Elysia app entrypoint
       config.ts             ← env-driven host/port/db path/client dist
-      db.ts                 ← SQLite setup, schema, query helpers
+      schema.ts             ← tables and versioned migrations (PRAGMA user_version)
+      db.ts                 ← SQLite setup, entry query helpers
+      catalog.ts            ← clients, projects, settings
       static.ts             ← serves client/dist in deployment
       rounding.ts           ← quarter-hour rounding logic
       routes.ts             ← API route handlers
@@ -55,12 +57,14 @@ skuld/
       App.tsx
       api.ts                ← fetch wrappers
       dates.ts              ← date formatting/math utils
+      weekExport.ts         ← week export rows and clipboard text
       styles.css
       components/
         DaySection.tsx
         EntryRow.tsx
         EntryForm.tsx
         WeekSummary.tsx
+        SettingsPage.tsx    ← /settings page
 ```
 
 ## Key Business Rules
@@ -68,7 +72,7 @@ skuld/
 1. **Rounding**: Start times floor to nearest 15 min, end times ceil. Server-side, non-negotiable.
 2. **Overlap flagging**: Overlaps are saved, not rejected; entries can be entered in any order and reconciled after. The day view marks double-booked time with a red "overlap" separator, mirroring the "gap" separator. The only time validation left server-side is that end must be after start (HTTP 400).
 3. **Duration**: Always computed, never stored. `(ended_at - started_at) / 60000` = minutes.
-4. **Clients**: PC and WB are the two current clients. Hardcoded as default quick-select buttons in the form, but the system supports arbitrary client codes.
+4. **Clients and projects**: managed records (code, name, active, order) edited on the Settings page; PC and WB are seeded as standing clients. Entries still store the client code and project name as text, and the server keeps the catalog in step with them. Copy/export labels a row `Client Name - Project`, falling back to the code.
 
 ## Running
 
@@ -91,7 +95,7 @@ bun test server client
 
 - **Add a new API route**: Define handler in `server/src/routes.ts`, types in `server/src/types.ts`
 - **Add a new component**: Create in `client/src/components/`, plain CSS in `styles.css`
-- **Change the schema**: Modify the CREATE TABLE in `server/src/db.ts`. Delete `server/skuld.db` to recreate from scratch during dev.
+- **Change the schema**: New tables go in `createTables` in `server/src/schema.ts`; changes to existing data go in a new entry at the end of its `MIGRATIONS` list, which runs once per database. Delete `server/skuld.db` to recreate from scratch during dev.
 
 ## Spec
 

@@ -2,36 +2,12 @@
 
 import { Database } from 'bun:sqlite'
 import { config } from './config'
-import { rowToEntry, type ClientProject, type Entry, type EntryRow } from './types'
+import { initSchema } from './schema'
+import { rowToEntry, type Entry, type EntryRow } from './types'
 
 export const db = new Database(config.dbPath, { create: true })
 
-// TODO: db.exec deprecated; update to db.run
-db.exec(`
-  CREATE TABLE IF NOT EXISTS entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    ended_at TEXT NOT NULL,
-    note TEXT NOT NULL DEFAULT '',
-    ticket TEXT NOT NULL DEFAULT '',
-    client TEXT NOT NULL,
-    project TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
-  CREATE INDEX IF NOT EXISTS idx_entries_client ON entries(client);
-`)
-
-// backfill columns on databases created before they existed
-const columns = db.query<{ name: string }, []>(`PRAGMA table_info(entries)`).all()
-if (!columns.some((c) => c.name === 'ticket')) {
-  db.exec(`ALTER TABLE entries ADD COLUMN ticket TEXT NOT NULL DEFAULT ''`)
-}
-if (!columns.some((c) => c.name === 'project')) {
-  db.exec(`ALTER TABLE entries ADD COLUMN project TEXT NOT NULL DEFAULT ''`)
-}
+initSchema(db)
 
 export const listEntriesInRange = (from: string, to: string): Entry[] => {
   const rows = db
@@ -119,23 +95,3 @@ export const deleteEntry = (id: number): boolean => {
     .run(id)
   return result.changes > 0
 }
-
-export const listClients = (): string[] => {
-  const rows = db
-    .query<{ client: string }, []>(
-      `SELECT DISTINCT client FROM entries ORDER BY client ASC`,
-    )
-    .all()
-  return rows.map((r) => r.client)
-}
-
-// every client/project pairing already used on an entry; entries without a
-//  project are skipped
-export const listProjects = (): ClientProject[] =>
-  db
-    .query<ClientProject, []>(
-      `SELECT DISTINCT client, project FROM entries
-       WHERE project != ''
-       ORDER BY client ASC, project ASC`,
-    )
-    .all()
