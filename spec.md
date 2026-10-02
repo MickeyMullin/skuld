@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS entries (
   note TEXT NOT NULL DEFAULT '',
   ticket TEXT NOT NULL DEFAULT '',   -- optional short ref, e.g. 'RES-1113' or '2280'
   client TEXT NOT NULL,
+  project TEXT NOT NULL DEFAULT '',  -- optional; belongs to the entry's client
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -102,11 +103,11 @@ All routes are prefixed with `/api`.
 Returns entries in the date range (inclusive), ordered by `date, started_at`.
 
 ### `POST /api/entries`
-Body: `{ date, startedAt, endedAt, note, ticket, client }`
+Body: `{ date, startedAt, endedAt, note, ticket, client, project }` (`project` optional, defaults to empty)
 Applies rounding, inserts, returns the created entry (with rounded times). Overlaps are permitted.
 
 ### `PUT /api/entries/:id`
-Body: any subset of `{ date, startedAt, endedAt, note, ticket, client }`
+Body: any subset of `{ date, startedAt, endedAt, note, ticket, client, project }`
 Merges with existing values, applies rounding, updates, returns the updated entry. Overlaps are permitted.
 
 ### `DELETE /api/entries/:id`
@@ -114,6 +115,9 @@ Deletes the entry. Returns `{ deleted: true }`.
 
 ### `GET /api/clients`
 Returns `string[]` of distinct client codes from existing entries, sorted alphabetically.
+
+### `GET /api/projects`
+Returns `{ client, project }[]`: the distinct client/project pairs on existing entries that have a project, sorted by client then project. Projects belong to a client, so the same name under two clients is two projects.
 
 ---
 
@@ -141,12 +145,14 @@ Returns `string[]` of distinct client codes from existing entries, sorted alphab
 - **Day sections**: collapsible accordion. Today expanded by default, others collapsed. Day header shows the day label, total hours, and per-client chips.
 - **Entry rows**: show formatted time range, duration, note, ticket, and client badge. Edit (pencil) and delete (×) buttons appear on hover. Delete opens a modal confirmation dialog (`ConfirmDialog`) showing the entry's time range, duration, client, note, and ticket, so it's unambiguous which row is going. The Delete button is focused on open, so confirming is one keystroke; Escape, the Cancel button, and a backdrop click all back out. A failed delete keeps the dialog open and shows the server's message rather than failing silently.
 - **Entry form**: inline within the day section. Time inputs are native `<input type="time">`. Shows rounded preview next to each time input when rounding will occur. Note is a text input. Ticket is an optional short text input sitting between Note and Client. Client is a row of toggle buttons for known clients (PC, WB hardcoded as defaults, plus any others from the DB) plus an "Other" button that shows a text input. When adding, the start time pre-fills from the previous entry's end time. Focus lands on the note field.
+  - **Project**: an optional select after Client, offering None, the projects known for the selected client, and "Other…" (which shows a text input for a new name). The list is keyed by client: the standing default is "PortCity Logistics - Dispatch Intelligence Platform II" under PC (`DEFAULT_PROJECTS` in `client/src/projects.ts`), unioned with every pair from `GET /api/projects`. Changing the client resets the project to that client's default project, or None. A new entry starts on the default project when it belongs to the starting client; editing keeps the entry's own project. Entry rows show the project as a dim line under the note.
 - **Autocomplete**: the Note and Ticket inputs suggest values already used elsewhere in the *same day*, matched case-insensitively on prefix, from the first character typed. Each row shows the source entry's ticket and client alongside the value, so it's visible what accepting will pull in. Duplicates collapse case-insensitively with the **most recent** entry as the source.
   - Two highlight states. The row Tab would take is always marked (`.tab-target`, with a `⇥` hint) — by default the first match. Arrow-Down *steps into* the list (`.active`, accent bar), Arrow-Up steps back out to the input, and only while stepped in does Enter accept; otherwise Enter submits the form, so a note that merely prefixes an older one still saves normally. Tab accepts the marked row and advances to the next field either way. Escape dismisses.
-  - Accepting pulls the source entry's sibling fields: from the **Note** list it fills note, ticket, and client; from the **Ticket** list it fills ticket and client, deliberately leaving the note alone since that's free text the user likely authored. A pulled client lands on the select or the "Other" input depending on whether the code is known.
+  - Accepting pulls the source entry's sibling fields: from the **Note** list it fills note, ticket, client, and project; from the **Ticket** list it fills ticket, client, and project, deliberately leaving the note alone since that's free text the user likely authored. A pulled client lands on the select or the "Other" input depending on whether the code is known.
   - The list is `position: fixed` so it escapes the day card's `overflow: hidden`.
-- **Day-copy dialog**: clicking a per-client chip opens a copy popover for that day+client. Clicking the same chip again closes it; clicking any other chip (another client, or another day) closes the open one and opens the new one in a single click — only one is ever open. Dismisses on Escape or any outside click, and self-dismisses 2s after a successful copy — the ✓ holds for that beat, then the popover fades out over 220ms and unmounts (the fade duration is set inline from the component so the animation and unmount timer can't drift; `prefers-reduced-motion` skips the animation). The clipboard payload is tab-separated and shaped for the target spreadsheet's columns — Hours (B), Task (C), two empty cells for the hidden D and E, then Ticket# (F): `hours \t tasks \t\t\t tickets`. The padding exists only in the clipboard; the dialog itself shows just Hrs / Tasks / Tickets. Both lists are deduped case-insensitively and comma-joined, tasks led by "Standup" when present. The ticket cell is always emitted, empty or not, so pasted rows line up.
+- **Day-copy dialog**: clicking a per-client chip opens a copy popover for that day+client. Clicking the same chip again closes it; clicking any other chip (another client, or another day) closes the open one and opens the new one in a single click — only one is ever open. Dismisses on Escape or any outside click, and self-dismisses 2s after a successful copy — the ✓ holds for that beat, then the popover fades out over 220ms and unmounts (the fade duration is set inline from the component so the animation and unmount timer can't drift; `prefers-reduced-motion` skips the animation). The clipboard payload is tab-separated and shaped for the target spreadsheet's columns — Hours (B), Task (C), two empty cells for the hidden D and E, then Ticket# (F), then the project appended at the end: `hours \t tasks \t\t\t tickets \t project`. The padding exists only in the clipboard; the dialog itself shows just Hrs / Tasks / Tickets / Project. Several projects for one day+client are deduped and comma-joined; the project cell is always emitted, empty or not. Both lists are deduped case-insensitively and comma-joined, tasks led by "Standup" when present. The ticket cell is always emitted, empty or not, so pasted rows line up.
   - **Multi-ticket entries**: a single entry's `ticket` field may hold several comma-separated refs (`223, 224`). Anything that counts or compares tickets splits the field first (`splitTickets`), so a ref shared by two entries is listed once rather than duplicated. Sloppy input is tolerated and tidied — `223,224`, `223, 224,225`, `,223,,224,` and stray whitespace all normalize to `223, 224[, 225]` via `normalizeTicketField`, applied when saving, when displaying an entry row, and when building the copy output. Ref *order* within a field is left as typed; only separators and blanks are cleaned.
+- **Settings menu** (gear in the header): one list with the default client, then a horizontal rule, then the default project. The project section appears only once a default client is set, and lists only that client's projects; changing the default client rebuilds that list and clears a default project belonging to another client, and clearing the default client clears the default project too. Both are stored in browser local storage (`skuld.defaultClient`, and `skuld.defaultProject` as `{ client, project }`).
 - **Week summary**: sticky sidebar. Shows total hours in large text, then a per-client breakdown with mini progress bars showing relative proportion.
 - **Responsive**: below 800px, the summary moves below the day list.
 

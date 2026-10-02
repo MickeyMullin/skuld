@@ -252,6 +252,31 @@ input:focus {
   font-size: 12px;
 }
 
+.config-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.config-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2px 0;
+}
+
+/* project names are prose, not codes, so they drop the mono client styling */
+.config-project-option {
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  max-width: 360px;
+}
+
+.config-project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-main {
   display: grid;
   grid-template-columns: 1fr 280px;
@@ -453,6 +478,14 @@ input:focus {
   white-space: nowrap;
 }
 
+.entry-project {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .entry-ticket {
   font-family: var(--mono);
   font-size: 11px;
@@ -568,6 +601,23 @@ input:focus {
 
 .client-other-input {
   width: 80px;
+}
+
+.entry-form .project-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-field select {
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  max-width: 240px;
+}
+
+.project-other-input {
+  width: 200px;
 }
 
 .entry-form .actions-field {
@@ -952,6 +1002,12 @@ input:focus {
   font-size: 12px;
   color: var(--text);
   max-width: 160px;
+}
+
+.copy-projects {
+  color: var(--text);
+  font-size: 12px;
+  max-width: 200px;
 }
 
 .copy-tasks {

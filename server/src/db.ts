@@ -2,7 +2,7 @@
 
 import { Database } from 'bun:sqlite'
 import { config } from './config'
-import { rowToEntry, type Entry, type EntryRow } from './types'
+import { rowToEntry, type ClientProject, type Entry, type EntryRow } from './types'
 
 export const db = new Database(config.dbPath, { create: true })
 
@@ -16,6 +16,7 @@ db.exec(`
     note TEXT NOT NULL DEFAULT '',
     ticket TEXT NOT NULL DEFAULT '',
     client TEXT NOT NULL,
+    project TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -23,10 +24,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_entries_client ON entries(client);
 `)
 
-// backfill the ticket column on databases created before it existed
+// backfill columns on databases created before they existed
 const columns = db.query<{ name: string }, []>(`PRAGMA table_info(entries)`).all()
 if (!columns.some((c) => c.name === 'ticket')) {
   db.exec(`ALTER TABLE entries ADD COLUMN ticket TEXT NOT NULL DEFAULT ''`)
+}
+if (!columns.some((c) => c.name === 'project')) {
+  db.exec(`ALTER TABLE entries ADD COLUMN project TEXT NOT NULL DEFAULT ''`)
 }
 
 export const listEntriesInRange = (from: string, to: string): Entry[] => {
@@ -61,13 +65,14 @@ type InsertParams = {
   note: string
   ticket: string
   client: string
+  project: string
 }
 
 export const insertEntry = (params: InsertParams): Entry => {
   const result = db
-    .query<{ id: number }, [string, string, string, string, string, string]>(
-      `INSERT INTO entries (date, started_at, ended_at, note, ticket, client)
-       VALUES (?, ?, ?, ?, ?, ?)
+    .query<{ id: number }, [string, string, string, string, string, string, string]>(
+      `INSERT INTO entries (date, started_at, ended_at, note, ticket, client, project)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        RETURNING id`,
     )
     .get(
@@ -77,6 +82,7 @@ export const insertEntry = (params: InsertParams): Entry => {
       params.note,
       params.ticket,
       params.client,
+      params.project,
     )
   if (!result) throw new Error('Insert failed')
   const entry = getEntryById(result.id)
@@ -87,10 +93,10 @@ export const insertEntry = (params: InsertParams): Entry => {
 export const updateEntry = (id: number, params: InsertParams): Entry => {
   db.query<
     null,
-    [string, string, string, string, string, string, number]
+    [string, string, string, string, string, string, string, number]
   >(
     `UPDATE entries
-     SET date = ?, started_at = ?, ended_at = ?, note = ?, ticket = ?, client = ?
+     SET date = ?, started_at = ?, ended_at = ?, note = ?, ticket = ?, client = ?, project = ?
      WHERE id = ?`,
   ).run(
     params.date,
@@ -99,6 +105,7 @@ export const updateEntry = (id: number, params: InsertParams): Entry => {
     params.note,
     params.ticket,
     params.client,
+    params.project,
     id,
   )
   const entry = getEntryById(id)
@@ -121,3 +128,14 @@ export const listClients = (): string[] => {
     .all()
   return rows.map((r) => r.client)
 }
+
+// every client/project pairing already used on an entry; entries without a
+//  project are skipped
+export const listProjects = (): ClientProject[] =>
+  db
+    .query<ClientProject, []>(
+      `SELECT DISTINCT client, project FROM entries
+       WHERE project != ''
+       ORDER BY client ASC, project ASC`,
+    )
+    .all()

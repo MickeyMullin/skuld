@@ -1,9 +1,9 @@
 // client/src/components/DaySection.tsx
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
-import type { Entry, EntryInput } from '../api'
+import type { ClientProject, Entry, EntryInput } from '../api'
 import { formatDayHeader, formatDuration, minutesBetween } from '../dates'
-import { buildTaskList, buildTicketList } from '../tasks'
+import { buildProjectNames, buildTaskList, buildTicketList } from '../tasks'
 import { buildNoteSuggestions, buildTicketSuggestions } from '../suggestions'
 import { EntryForm } from './EntryForm'
 import { EntryRow, clientBadgeClass } from './EntryRow'
@@ -14,7 +14,9 @@ type Props = {
   dateKey: string
   entries: Entry[]
   knownClients: string[]
+  knownProjects: ClientProject[]
   defaultClient: string | null
+  defaultProject: ClientProject | null
   isToday: boolean
   defaultOpen: boolean
   onCreate: (input: EntryInput) => Promise<void>
@@ -50,7 +52,9 @@ export const DaySection = ({
   dateKey,
   entries,
   knownClients,
+  knownProjects,
   defaultClient,
+  defaultProject,
   isToday,
   defaultOpen,
   onCreate,
@@ -143,6 +147,8 @@ export const DaySection = ({
                 <EntryRow
                   entry={e}
                   knownClients={knownClients}
+                  knownProjects={knownProjects}
+                  defaultProject={defaultProject}
                   noteSuggestions={noteSuggestions}
                   ticketSuggestions={ticketSuggestions}
                   onUpdate={onUpdate}
@@ -153,9 +159,11 @@ export const DaySection = ({
           })}
           {adding ? (
             <EntryForm
-              key={`${formKey}-${defaultClient ?? ''}`}
+              key={`${formKey}-${defaultClient ?? ''}-${defaultProject?.client ?? ''}-${defaultProject?.project ?? ''}`}
               date={dateKey}
               knownClients={knownClients}
+              knownProjects={knownProjects}
+              defaultProject={defaultProject}
               noteSuggestions={noteSuggestions}
               ticketSuggestions={ticketSuggestions}
               submitLabel="Add"
@@ -178,6 +186,7 @@ export const DaySection = ({
                   note: values.note,
                   ticket: values.ticket,
                   client: values.client,
+                  project: values.project,
                 })
                 setFormKey((k) => k + 1)
               }}
@@ -200,6 +209,9 @@ export const DaySection = ({
           )}
           tasks={buildTaskList(
             entries.filter((e) => e.client === copyClient).map((e) => e.note),
+          )}
+          projects={buildProjectNames(
+            entries.filter((e) => e.client === copyClient).map((e) => e.project),
           )}
           anchor={copyAnchor}
           onClose={closeCopy}

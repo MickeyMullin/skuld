@@ -1,7 +1,7 @@
 // client/src/components/EntryRow.tsx
 
 import { useState } from 'react'
-import type { Entry } from '../api'
+import type { ClientProject, Entry } from '../api'
 import { formatDuration, formatTime, minutesBetween } from '../dates'
 import { ConfirmDialog } from './ConfirmDialog'
 import { EntryForm } from './EntryForm'
@@ -18,6 +18,8 @@ export const clientBadgeClass = (client: string): string => {
 type Props = {
   entry: Entry
   knownClients: string[]
+  knownProjects: ClientProject[]
+  defaultProject: ClientProject | null
   noteSuggestions: Suggestion[]
   ticketSuggestions: Suggestion[]
   onUpdate: (id: number, patch: Partial<Entry>) => Promise<void>
@@ -27,6 +29,8 @@ type Props = {
 export const EntryRow = ({
   entry,
   knownClients,
+  knownProjects,
+  defaultProject,
   noteSuggestions,
   ticketSuggestions,
   onUpdate,
@@ -41,6 +45,8 @@ export const EntryRow = ({
         <EntryForm
           date={entry.date}
           knownClients={knownClients}
+          knownProjects={knownProjects}
+          defaultProject={defaultProject}
           noteSuggestions={noteSuggestions}
           ticketSuggestions={ticketSuggestions}
           initial={{
@@ -49,6 +55,7 @@ export const EntryRow = ({
             note: entry.note,
             ticket: entry.ticket,
             client: entry.client,
+            project: entry.project,
           }}
           submitLabel="Save"
           onSubmit={async (values) => {
@@ -69,7 +76,10 @@ export const EntryRow = ({
         {formatTime(entry.startedAt)} – {formatTime(entry.endedAt)}
       </span>
       <span className="entry-duration">{formatDuration(duration)}</span>
-      <span className="entry-note">{entry.note || <em style={{ opacity: 0.5 }}>—</em>}</span>
+      <span className="entry-note">
+        {entry.note || <em style={{ opacity: 0.5 }}>—</em>}
+        {entry.project && <span className="entry-project">{entry.project}</span>}
+      </span>
       {/* normalized on display too, so rows saved before this looked uniform */}
       <span className="entry-ticket">{normalizeTicketField(entry.ticket)}</span>
       <span className={clientBadgeClass(entry.client)}>{entry.client}</span>

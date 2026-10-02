@@ -10,6 +10,8 @@ import {
 import { TimeInput } from './TimeInput'
 import { AutocompleteInput } from './AutocompleteInput'
 import { DEFAULT_CLIENTS, buildClientList } from '../clients'
+import { buildProjectList, defaultProjectFor, projectsForClient } from '../projects'
+import type { ClientProject } from '../api'
 import type { Suggestion } from '../suggestions'
 import { normalizeTicketField } from '../tasks'
 
@@ -19,11 +21,14 @@ type FormValues = {
   note: string
   ticket: string
   client: string
+  project: string
 }
 
 type Props = {
   date: string
   knownClients: string[]
+  knownProjects: ClientProject[]
+  defaultProject: ClientProject | null
   noteSuggestions: Suggestion[]
   ticketSuggestions: Suggestion[]
   initial?: Partial<FormValues>
@@ -37,6 +42,8 @@ const OTHER_SENTINEL = '__other__'
 export const EntryForm = ({
   date,
   knownClients,
+  knownProjects,
+  defaultProject,
   noteSuggestions,
   ticketSuggestions,
   initial,
@@ -47,6 +54,14 @@ export const EntryForm = ({
   const clients = buildClientList(knownClients)
   const initialClient = initial?.client ?? DEFAULT_CLIENTS[0]
   const isInitialKnown = clients.includes(initialClient.toUpperCase())
+  const projectList = buildProjectList(knownProjects)
+  // an existing entry keeps whatever project it has, including none; a new one
+  //  starts on the configured default when that belongs to its client
+  const initialProject =
+    initial?.project ?? defaultProjectFor(defaultProject, initialClient)
+  const initialProjectOptions = projectsForClient(projectList, initialClient)
+  const isInitialProjectKnown =
+    !initialProject || initialProjectOptions.includes(initialProject)
 
   const [startTime, setStartTime] = useState(
     initial?.startedAt ? isoToTimeString(initial.startedAt) : '09:00',
@@ -60,13 +75,36 @@ export const EntryForm = ({
     isInitialKnown ? initialClient.toUpperCase() : OTHER_SENTINEL,
   )
   const [otherValue, setOtherValue] = useState(isInitialKnown ? '' : initialClient)
+  const [project, setProject] = useState(
+    isInitialProjectKnown ? initialProject : OTHER_SENTINEL,
+  )
+  const [otherProject, setOtherProject] = useState(
+    isInitialProjectKnown ? '' : initialProject,
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
 
+  const effectiveClient = client === OTHER_SENTINEL ? otherValue.trim().toUpperCase() : client
+  const projectOptions = projectsForClient(projectList, effectiveClient)
+
+  // projects belong to a client, so the project field is likewise a select plus
+  //  an "Other" text input, and a pulled-in name lands on whichever fits
+  const applyProject = (forClient: string, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || projectsForClient(projectList, forClient).includes(trimmed)) {
+      setProject(trimmed)
+      setOtherProject('')
+    } else {
+      setProject(OTHER_SENTINEL)
+      setOtherProject(trimmed)
+    }
+  }
+
   // the client field is a select plus an "Other" text input, so a pulled-in code
-  //  has to land on whichever of the two can represent it
-  const applyClient = (code: string) => {
+  //  has to land on whichever of the two can represent it. the project is
+  //  carried along with it, since one client's project means nothing to another
+  const applyClient = (code: string, projectName: string) => {
     const upper = code.trim().toUpperCase()
     if (!upper) return
     if (clients.includes(upper)) {
@@ -75,6 +113,17 @@ export const EntryForm = ({
     } else {
       setClient(OTHER_SENTINEL)
       setOtherValue(upper)
+    }
+    applyProject(upper, projectName)
+  }
+
+  // picking a different client swaps in that client's default project, or none
+  const changeClient = (value: string) => {
+    setClient(value)
+    if (value === OTHER_SENTINEL) {
+      applyProject('', '')
+    } else {
+      applyProject(value, defaultProjectFor(defaultProject, value))
     }
   }
 
@@ -100,7 +149,8 @@ export const EntryForm = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    const finalClient = client === OTHER_SENTINEL ? otherValue.trim().toUpperCase() : client
+    const finalClient = effectiveClient
+    const finalProject = project === OTHER_SENTINEL ? otherProject.trim() : project
     if (!finalClient) {
       setError('Client is required')
       return
@@ -113,6 +163,7 @@ export const EntryForm = ({
         note: note.trim(),
         ticket: normalizeTicketField(ticket),
         client: finalClient,
+        project: finalProject,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -148,7 +199,7 @@ export const EntryForm = ({
           onAccept={(s) => {
             setNote(s.value)
             setTicket(s.ticket)
-            applyClient(s.client)
+            applyClient(s.client, s.project)
           }}
           suggestions={noteSuggestions}
           placeholder="What did you work on?"
@@ -164,7 +215,7 @@ export const EntryForm = ({
           //  deliberately, unlike the short codes
           onAccept={(s) => {
             setTicket(s.value)
-            applyClient(s.client)
+            applyClient(s.client, s.project)
           }}
           suggestions={ticketSuggestions}
           placeholder="Optional"
@@ -177,7 +228,7 @@ export const EntryForm = ({
         <div className="client-select-row">
           <select
             value={client}
-            onChange={(e) => setClient(e.target.value)}
+            onChange={(e) => changeClient(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -194,9 +245,49 @@ export const EntryForm = ({
             <input
               type="text"
               value={otherValue}
-              onChange={(e) => setOtherValue(e.target.value)}
+              onChange={(e) => {
+                setOtherValue(e.target.value)
+                // a picked project belonged to the code as it was typed before
+                if (project !== OTHER_SENTINEL) setProject('')
+              }}
               placeholder="Code"
               className="client-other-input"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  submitViaRef()
+                }
+              }}
+            />
+          )}
+        </div>
+      </div>
+      <div className="project-field">
+        <label>Project</label>
+        <div className="client-select-row">
+          <select
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                submitViaRef()
+              }
+            }}
+          >
+            <option value="">None</option>
+            {projectOptions.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+            <option value={OTHER_SENTINEL}>Other…</option>
+          </select>
+          {project === OTHER_SENTINEL && (
+            <input
+              type="text"
+              value={otherProject}
+              onChange={(e) => setOtherProject(e.target.value)}
+              placeholder="Project"
+              className="project-other-input"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()

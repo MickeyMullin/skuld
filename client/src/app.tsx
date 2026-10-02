@@ -6,7 +6,9 @@ import {
   deleteEntry as apiDeleteEntry,
   fetchClients,
   fetchEntries,
+  fetchProjects,
   updateEntry as apiUpdateEntry,
+  type ClientProject,
   type Entry,
   type EntryInput,
 } from './api'
@@ -24,10 +26,14 @@ import { DaySection } from './components/DaySection'
 import { WeekSummary } from './components/WeekSummary'
 import { ConfigMenu } from './components/ConfigMenu'
 import { buildClientList } from './clients'
+import { addProject, buildProjectList } from './projects'
 import {
   clearDefaultClient,
+  clearDefaultProject,
   getDefaultClient,
+  getDefaultProject,
   setDefaultClient,
+  setDefaultProject,
 } from './config'
 import { DISCOVERY_URL, isDevServer, showDiscoveryLink } from './discovery'
 
@@ -38,22 +44,42 @@ export const App = () => {
   })
   const [entries, setEntries] = useState<Entry[]>([])
   const [knownClients, setKnownClients] = useState<string[]>([])
+  const [knownProjects, setKnownProjects] = useState<ClientProject[]>([])
   const [defaultClient, setDefaultClientState] = useState<string | null>(() =>
     getDefaultClient(),
+  )
+  const [defaultProject, setDefaultProjectState] = useState<ClientProject | null>(() =>
+    getDefaultProject(),
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const clientOptions = useMemo(() => buildClientList(knownClients), [knownClients])
+  const projectOptions = useMemo(() => buildProjectList(knownProjects), [knownProjects])
 
+  // the default project is chosen from the default client's own projects, so
+  //  it can't outlive a change of client; leaving it would quietly keep
+  //  applying to the old client while no longer shown in settings
   const handleChangeDefault = (client: string) => {
     setDefaultClient(client)
     setDefaultClientState(client)
+    if (defaultProject && defaultProject.client !== client) handleClearDefaultProject()
   }
 
   const handleClearDefault = () => {
     clearDefaultClient()
     setDefaultClientState(null)
+    handleClearDefaultProject()
+  }
+
+  const handleChangeDefaultProject = (project: ClientProject) => {
+    setDefaultProject(project)
+    setDefaultProjectState(project)
+  }
+
+  const handleClearDefaultProject = () => {
+    clearDefaultProject()
+    setDefaultProjectState(null)
   }
 
   const today = new Date()
@@ -65,12 +91,14 @@ export const App = () => {
     setLoading(true)
     setError(null)
     try {
-      const [list, clients] = await Promise.all([
+      const [list, clients, projects] = await Promise.all([
         fetchEntries(fromKey, toKey),
         fetchClients(),
+        fetchProjects(),
       ])
       setEntries(list)
       setKnownClients(clients)
+      setKnownProjects(projects)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
@@ -108,11 +136,13 @@ export const App = () => {
     if (!knownClients.includes(created.client)) {
       setKnownClients((prev) => [...prev, created.client].sort())
     }
+    setKnownProjects((prev) => addProject(prev, created.client, created.project))
   }
 
   const handleUpdate = async (id: number, patch: Partial<Entry>) => {
     const updated = await apiUpdateEntry(id, patch)
     setEntries((prev) => prev.map((e) => (e.id === id ? updated : e)))
+    setKnownProjects((prev) => addProject(prev, updated.client, updated.project))
   }
 
   const handleDelete = async (id: number) => {
@@ -148,9 +178,13 @@ export const App = () => {
         </div>
         <ConfigMenu
           clients={clientOptions}
+          projects={projectOptions}
           defaultClient={defaultClient}
+          defaultProject={defaultProject}
           onChangeDefault={handleChangeDefault}
+          onChangeDefaultProject={handleChangeDefaultProject}
           onClearDefault={handleClearDefault}
+          onClearDefaultProject={handleClearDefaultProject}
         />
       </header>
       {error && <div className="banner-error">{error}</div>}
@@ -170,7 +204,9 @@ export const App = () => {
                   dateKey={key}
                   entries={dayEntries}
                   knownClients={knownClients}
+                  knownProjects={knownProjects}
                   defaultClient={defaultClient}
+                  defaultProject={defaultProject}
                   isToday={isToday}
                   defaultOpen={isToday}
                   onCreate={handleCreate}

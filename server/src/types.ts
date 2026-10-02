@@ -8,6 +8,7 @@ export type Entry = {
   note: string
   ticket: string
   client: string
+  project: string
   createdAt: string
 }
 
@@ -19,6 +20,7 @@ export type EntryRow = {
   note: string
   ticket: string
   client: string
+  project: string
   created_at: string
 }
 
@@ -29,6 +31,7 @@ export type CreateEntryInput = {
   note?: string
   ticket?: string
   client: string
+  project?: string
 }
 
 export type UpdateEntryInput = Partial<CreateEntryInput>
@@ -41,5 +44,12 @@ export const rowToEntry = (row: EntryRow): Entry => ({
   note: row.note,
   ticket: row.ticket,
   client: row.client,
+  project: row.project,
   createdAt: row.created_at,
 })
+
+// a project belongs to one client; the same name under two clients is two projects
+export type ClientProject = {
+  client: string
+  project: string
+}

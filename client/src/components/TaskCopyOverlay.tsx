@@ -16,6 +16,7 @@ type Props = {
   minutes: number
   tickets: string[]
   tasks: string[]
+  projects: string[]
   anchor: DOMRect
   onClose: () => void
 }
@@ -26,6 +27,7 @@ export const TaskCopyOverlay = ({
   minutes,
   tickets,
   tasks,
+  projects,
   anchor,
   onClose,
 }: Props) => {
@@ -79,7 +81,7 @@ export const TaskCopyOverlay = ({
   }, [closing, onClose])
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(taskCopyRow(minutes, tasks, tickets))
+    await navigator.clipboard.writeText(taskCopyRow(minutes, tasks, tickets, projects))
     setCopied(true)
   }
 
@@ -97,6 +99,7 @@ export const TaskCopyOverlay = ({
             <th>Hrs</th>
             <th>Tasks</th>
             <th>Tickets</th>
+            <th>Project</th>
             <th>Copy</th>
           </tr>
         </thead>
@@ -105,6 +108,7 @@ export const TaskCopyOverlay = ({
             <td className="copy-hrs">{decimalHours(minutes)}</td>
             <td className="copy-tasks">{taskListString(tasks) || <em>—</em>}</td>
             <td className="copy-tickets">{ticketListString(tickets) || <em>—</em>}</td>
+            <td className="copy-projects">{projects.join(', ') || <em>—</em>}</td>
             <td className="copy-glyph-cell">
               <button
                 className="ghost copy-glyph"

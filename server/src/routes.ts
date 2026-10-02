@@ -7,6 +7,7 @@ import {
   insertEntry,
   listClients,
   listEntriesInRange,
+  listProjects,
   updateEntry,
 } from './db'
 import { ceilToQuarter, floorToQuarter } from './rounding'
@@ -45,6 +46,7 @@ export const routes = new Elysia({ prefix: '/api' })
         note: body.note ?? '',
         ticket: body.ticket ?? '',
         client: body.client,
+        project: body.project ?? '',
       })
     },
     {
@@ -55,6 +57,7 @@ export const routes = new Elysia({ prefix: '/api' })
         note: t.Optional(t.String()),
         ticket: t.Optional(t.String()),
         client: t.String(),
+        project: t.Optional(t.String()),
       }),
     },
   )
@@ -75,6 +78,7 @@ export const routes = new Elysia({ prefix: '/api' })
         note: body.note ?? existing.note,
         ticket: body.ticket ?? existing.ticket,
         client: body.client ?? existing.client,
+        project: body.project ?? existing.project,
       }
 
       const startedAt = floorToQuarter(merged.startedAt)
@@ -92,6 +96,7 @@ export const routes = new Elysia({ prefix: '/api' })
         note: merged.note,
         ticket: merged.ticket,
         client: merged.client,
+        project: merged.project,
       })
     },
     {
@@ -103,6 +108,7 @@ export const routes = new Elysia({ prefix: '/api' })
         note: t.Optional(t.String()),
         ticket: t.Optional(t.String()),
         client: t.Optional(t.String()),
+        project: t.Optional(t.String()),
       }),
     },
   )
@@ -122,3 +128,4 @@ export const routes = new Elysia({ prefix: '/api' })
     },
   )
   .get('/clients', () => listClients())
+  .get('/projects', () => listProjects())

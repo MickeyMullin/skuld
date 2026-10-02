@@ -8,7 +8,14 @@ export type Entry = {
   note: string
   ticket: string
   client: string
+  project: string
   createdAt: string
+}
+
+// a project belongs to one client; the same name under two clients is two projects
+export type ClientProject = {
+  client: string
+  project: string
 }
 
 export type EntryInput = {
@@ -18,6 +25,7 @@ export type EntryInput = {
   note?: string
   ticket?: string
   client: string
+  project?: string
 }
 
 export type EntryUpdate = Partial<EntryInput>
@@ -66,3 +74,5 @@ export const deleteEntry = (id: number) =>
   request<{ deleted: true }>(`/api/entries/${id}`, { method: 'DELETE' })
 
 export const fetchClients = () => request<string[]>('/api/clients')
+
+export const fetchProjects = () => request<ClientProject[]>('/api/projects')

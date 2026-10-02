@@ -41,6 +41,9 @@ export const normalizeTicketField = (raw: string): string =>
 export const buildTicketList = (tickets: string[]): string[] =>
   distinctValues(tickets.flatMap(splitTickets))
 
+// build the deduped project list for a client's day; usually a single project
+export const buildProjectNames = (projects: string[]): string[] => distinctValues(projects)
+
 // comma-separated rendering of the task list
 export const taskListString = (tasks: string[]): string => tasks.join(', ')
 
@@ -55,16 +58,19 @@ export const decimalHours = (minutes: number): string => (minutes / 60).toFixed(
 const HIDDEN_COLUMNS = 2
 
 // tab-separated row for the clipboard, laid out as the spreadsheet's
-//  Hours (B), Task (C), <hidden D, E>, Ticket# (F). the ticket cell is always
-//  present, empty or not, so pasted rows line up
+//  Hours (B), Task (C), <hidden D, E>, Ticket# (F), then the project appended
+//  after it. the ticket and project cells are always present, empty or not, so
+//  pasted rows line up
 export const taskCopyRow = (
   minutes: number,
   tasks: string[],
   tickets: string[],
+  projects: string[],
 ): string =>
   [
     decimalHours(minutes),
     taskListString(tasks),
     ...Array(HIDDEN_COLUMNS).fill(''),
     ticketListString(tickets),
+    projects.join(', '),
   ].join('\t')

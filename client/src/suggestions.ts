@@ -9,6 +9,7 @@ export type Suggestion = {
   value: string
   ticket: string
   client: string
+  project: string
 }
 
 // dedupe candidates case-insensitively. they arrive in start-time order and later
@@ -32,6 +33,7 @@ export const buildNoteSuggestions = (entries: Entry[]): Suggestion[] =>
       // the whole field, so completing a note brings all of its refs along
       ticket: normalizeTicketField(e.ticket),
       client: e.client,
+      project: e.project,
     })),
   )
 
@@ -43,6 +45,11 @@ export const buildTicketSuggestions = (entries: Entry[]): Suggestion[] =>
     entries.flatMap((e) => {
       const refs = splitTickets(e.ticket)
       const values = refs.length > 1 ? [...refs, refs.join(', ')] : refs
-      return values.map((value) => ({ value, ticket: value, client: e.client }))
+      return values.map((value) => ({
+        value,
+        ticket: value,
+        client: e.client,
+        project: e.project,
+      }))
     }),
   )
