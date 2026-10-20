@@ -69,7 +69,7 @@ curl -s -X POST $SKULD/entries -H 'content-type: application/json' \
 
 ## How to report a day
 
-1. **Learn the typical shape first.** Call `GET /api/weeks` (the two complete weeks before this one, every entry included). Look at which clients and projects are used, how notes are worded (short task names, such as `Standup` or `Route optimizer retries`), how tickets are written (`RES-1201`, bare numbers for some clients, several refs comma-separated), what time the day usually starts, and how long entries usually run. New entries should look like those.
+1. **Learn the typical shape first.** Call `GET /api/weeks` (the two complete weeks before this one, every entry included). Look at which clients and projects are used, how notes are worded (short task names, such as `Standup` or `Route optimizer retries`), how tickets are written (`RES-1201`, bare numbers for some clients, several refs comma-separated), what time the day usually starts, and how long entries usually run. New entries should look like those. PR reviews follow a fixed form; see [Writing review notes](#writing-review-notes).
 1. **Read the catalog.** `GET /api/clients` and `GET /api/projects`. Use existing active codes and names exactly; an unknown one creates a new record. `GET /api/settings` gives the preferred start time for a day's first entry.
 1. **Check the day before writing.** `GET /api/entries?from=<day>&to=<day>`. The user may already have logged some or all of it by hand; don't duplicate those, and don't overwrite entries you didn't create.
 1. **Post each entry with an `externalId`.** Make the key deterministic from the job and the work item, such as `daily-report:2026-10-20:pc-1`, so that re-running the job for the same day updates the same entries instead of adding new ones.
@@ -318,6 +318,19 @@ curl -s "$SKULD/summary?from=2026-10-20&to=2026-10-20"
 ```
 
 The 225 minutes include the 15 double-booked ones; the entries cover 210 minutes of wall-clock time.
+
+## Writing review notes
+
+A note is a list of tasks separated by `, `. When the user copies a day for the timesheet, every review task across that client's notes for the day is merged into one, so a day of scattered reviews exports as a single `Review PRs 871–2, 884, 910–11, 917–25, 927–8, 930` rather than six separate tasks. For that to work, write a review as a task of its own in exactly this form:
+
+- `Review PR 924` for one PR, `Review PRs 884, 910, 911` for several.
+- PR numbers in full, ascending, separated by `, `. Don't abbreviate them into ranges; the export does that.
+- Nothing else inside the review task: no qualifier such as `prettier fix`, `(stack)`, or `second round`. A re-review is just `Review PR 924` again, and the export dedupes it.
+- Other work goes in its own task in the same note, before or after: `Dependabot sweep, Review PRs 871, 872`, or `Review PRs 927, 930, Address review findings on PRs 925, 926, 929`.
+
+Only reviewing someone's PR is a review task. Work on your own PRs (`GPS refresh ETL fixes, PRs 925, 926`, `Address review findings on PRs 925, 926`) is ordinary text and stays as written. A review task that doesn't fit the form (`Review PR 924 prettier fix`) isn't lost, but it is listed on its own as typed instead of merging.
+
+The export also reads ranges, which hand-entered notes use (`Review PRs 723–25, 730–31`), and accepts `Reviewed` for `Review`. `GET /api/summary` returns notes exactly as written, unmerged.
 
 ## Idempotent writes with externalId
 

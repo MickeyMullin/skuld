@@ -1,7 +1,7 @@
 // client/src/tasks.test.ts
 
 import { describe, expect, test } from 'bun:test'
-import { buildProjectNames, taskCopyRow } from './tasks'
+import { buildProjectNames, buildTaskList, taskCopyRow } from './tasks'
 
 describe('taskCopyRow', () => {
   test('appends the project after the ticket column', () => {
@@ -26,5 +26,78 @@ describe('taskCopyRow', () => {
 describe('buildProjectNames', () => {
   test('dedupes and drops blanks', () => {
     expect(buildProjectNames(['B', '', 'a', 'b'])).toEqual(['a', 'B'])
+  })
+})
+
+describe('buildTaskList', () => {
+  test('leads with Standup and otherwise alphabetizes', () => {
+    expect(buildTaskList(['Load board', 'standup', 'Billing', 'load board'])).toEqual([
+      'Standup',
+      'Billing',
+      'Load board',
+    ])
+  })
+
+  test("merges the day's review tasks into one, with ranges", () => {
+    expect(
+      buildTaskList([
+        'Standup',
+        'Dependabot sweep, Review PRs 871, 872, 917, 918, 919, 920, 921, 922, 923, 924',
+        'Review PRs 884, 910, 911',
+        'Review PR 924, Review-file cleanup',
+        'Review PRs 925, 928, 930',
+        'Review PRs 927, 930, Address review findings on PRs 925, 926, 929',
+        'GPS refresh ETL fixes, PRs 925, 926, 928, 930',
+      ]),
+    ).toEqual([
+      'Standup',
+      'Address review findings on PRs 925, 926, 929',
+      'Dependabot sweep',
+      'GPS refresh ETL fixes, PRs 925, 926, 928, 930',
+      'Review PRs 871–2, 884, 910–11, 917–25, 927–8, 930',
+      'Review-file cleanup',
+    ])
+  })
+
+  test('reads ranges with shortened ends and writes the differing digits', () => {
+    expect(buildTaskList(['Review PRs 723–25, 548–9', 'Reviewed PRs 938-941, 999, 1000–1001'])).toEqual([
+      'Review PRs 548–9, 723–5, 938–41, 999–1001',
+    ])
+  })
+
+  test('keeps both digits of a teen at the end of a range', () => {
+    expect(buildTaskList(['Review PRs 910, 911, 1012, 1013, 1014, 18, 19'])).toEqual([
+      'Review PRs 18–19, 910–11, 1012–14',
+    ])
+  })
+
+  test('a lone PR, even reviewed twice, stays singular', () => {
+    expect(buildTaskList(['Review PR 924', 'Review PRs 924'])).toEqual(['Review PR 924'])
+  })
+
+  test('keeps a note that breaks the pattern as typed', () => {
+    expect(
+      buildTaskList([
+        'Review PR 924 prettier fix',
+        'Review PRs 717, 720, 726 (stack)',
+        'Review dependabot PRs 680–688',
+        'Drizzle schema management review',
+        'Hot loads not yet available, awaiting-availability counts (PR 908)',
+      ]),
+    ).toEqual([
+      'Drizzle schema management review',
+      'Hot loads not yet available, awaiting-availability counts (PR 908)',
+      'Review dependabot PRs 680–688',
+      'Review PR 924 prettier fix',
+      'Review PRs 717, 720, 726 (stack)',
+    ])
+  })
+
+  test('text on both sides of a review task stays as separate tasks', () => {
+    expect(buildTaskList(['Billing, Review PRs 5, 6, Load board, Route retries'])).toEqual([
+      'Billing',
+      'Load board, Route retries',
+      'Review PRs 5–6',
+    ])
   })
 })
