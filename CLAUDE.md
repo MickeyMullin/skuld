@@ -50,6 +50,7 @@ skuld/
       catalog.ts            ← clients, projects, settings
       static.ts             ← serves client/dist in deployment
       rounding.ts           ← quarter-hour rounding logic
+      routeIndex.ts         ← GET /api/routes, built from Elysia's route table
       routes.ts             ← API route handlers
       types.ts              ← shared type definitions
   client/
@@ -100,7 +101,7 @@ bun test server client
 
 ## Common Tasks
 
-- **Add a new API route**: Define handler in `server/src/routes.ts`, types in `server/src/types.ts`, and document it in `docs/api.md`
+- **Add a new API route**: Define handler in `server/src/routes.ts`, types in `server/src/types.ts`, and document it in `docs/api.md`. `GET /api/routes` (`server/src/routeIndex.ts`) lists routes from Elysia's route table, so it needs no edit; `routeIndex.test.ts` fails until `docs/api.md` has a `### ` heading naming the new route's method and path
 - **Add a new component**: Create in `client/src/components/`, plain CSS in `styles.css`
 - **Change the schema**: New tables go in `createTables` in `server/src/schema.ts`; changes to existing data go in a new entry at the end of its `MIGRATIONS` list, which runs once per database. Delete `server/skuld.db` to recreate from scratch during dev.
 

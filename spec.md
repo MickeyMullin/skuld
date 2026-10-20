@@ -135,6 +135,9 @@ Errors are `{ error }` with a 400, 404, or 409 status. A request that doesn't ma
 ### `GET /api/health`
 Returns `{ ok: true, service: 'skuld', time }`; the deploy script polls it.
 
+### `GET /api/routes`
+Returns `{ docs, routes }`: the docs/api.md URL and every registered route's `method` and `path`, with field-to-type maps for the `params`, `query`, and `body` it validates. Built at request time from Elysia's route table (`server/src/routeIndex.ts`), so it never needs editing; a test fails when a registered route has no heading in docs/api.md, or a heading names no registered route.
+
 ### `GET /api/entries?from=YYYY-MM-DD&to=YYYY-MM-DD`
 Returns entries in the date range (inclusive), ordered by `date, started_at`. An optional `externalId` parameter narrows the range to the entry carrying that key.
 

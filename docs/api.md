@@ -5,7 +5,7 @@ Skuld is a personal timesheet tracker. This document is a complete reference for
 
 ## Basics
 
-The base URL is `http://127.0.0.1:3456` on the machine that runs the server, or `https://skuld.home.vorheim.com` on the home network. All routes are under `/api`. The examples set a shell variable first:
+The base URL is `http://127.0.0.1:3456` on the machine that runs the server, or `https://skuld.home.vorheim.com` on the home network. All routes are under `/api`, and `GET /api/routes` lists them all as the running server has them, with the fields each accepts. The examples set a shell variable first:
 
 ```bash
 SKULD=http://127.0.0.1:3456/api
@@ -403,6 +403,24 @@ Returns `{ "ok": true, "service": "skuld", "time": "<UTC ISO now>" }`.
 ```bash
 curl -s $SKULD/health
 # {"ok":true,"service":"skuld","time":"2026-10-20T15:11:57.797Z"}
+```
+
+### `GET /api/routes`
+
+Lists every route the running server registers, read from the server's own route table rather than kept by hand, so it can't fall behind a code change. The response is `{ docs, routes }`: `docs` is this document's URL, and `routes` is in registration order, each `{ method, path }` plus `params`, `query`, and `body` for the parts the route validates, absent when it validates none. Each of those is a map of field name to type label, written like TypeScript: a trailing `?` on a name marks the field optional, `string | null` is either, and `number[]` is an array. A path or body number can also be sent as its string form (`"7"`). Only the request is described; responses and error statuses are documented in this reference.
+
+```bash
+curl -s $SKULD/routes
+# {"docs":"https://github.com/MickeyMullin/skuld/blob/master/docs/api.md","routes":[
+#   {"method":"GET","path":"/api/health"},
+#   {"method":"GET","path":"/api/routes"},
+#   {"method":"GET","path":"/api/entries","query":{"from":"string","to":"string","externalId?":"string"}},
+#   ...
+#   {"method":"PUT","path":"/api/entries/:id","params":{"id":"string"},"body":{"date?":"string",...,"externalId?":"string | null"}},
+#   ...
+#   {"method":"PUT","path":"/api/projects/order","body":{"clientId":"number","ids":"number[]"}},
+#   ...
+# ]}
 ```
 
 ### `GET /api/entries?from=YYYY-MM-DD&to=YYYY-MM-DD[&externalId=…]`

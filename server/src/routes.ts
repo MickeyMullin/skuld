@@ -25,6 +25,7 @@ import {
 } from './db'
 import { isDateKey } from './dateKeys'
 import { ceilToQuarter, floorToQuarter } from './rounding'
+import { describeRoutes, type RouteIndex } from './routeIndex'
 import { getSummary, getWeeks } from './summary'
 import { isRequestError } from './types'
 
@@ -57,6 +58,8 @@ const normalizeExternalId = (raw: string | null | undefined): string | null =>
 //  saved in any order and reconciled afterwards
 export const routes = new Elysia({ prefix: '/api' })
   .get('/health', () => ({ ok: true, service: 'skuld', time: new Date().toISOString() }))
+  // read at request time, so the list includes every route chained after this one
+  .get('/routes', (): RouteIndex => describeRoutes(routes.routes))
   .get(
     '/entries',
     ({ query }) => {
