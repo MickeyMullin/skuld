@@ -7,7 +7,8 @@ import { serveStatic } from './static'
 
 const app = new Elysia()
   .onError(({ code, error, set }) => {
-    if (code === 'VALIDATION') {
+    // a malformed JSON body is the caller's fault as much as a missing field is
+    if (code === 'VALIDATION' || code === 'PARSE') {
       set.status = 400
       return { error: 'Invalid request body' }
     }

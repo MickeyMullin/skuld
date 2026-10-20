@@ -1,6 +1,6 @@
 // server/src/catalog.test.ts
 
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +12,9 @@ process.env.SKULD_DB = join(dir, 'test.db')
 const catalog = await import('./catalog')
 const { insertEntry, getEntryById } = await import('./db')
 
-afterAll(() => rmSync(dir, { recursive: true, force: true }))
+// bun runs every test file in one process and the db module opens only the
+//  first file's database, so nothing is removed until all of them are done
+process.on('exit', () => rmSync(dir, { recursive: true, force: true }))
 
 const entry = (client: string, project: string) =>
   insertEntry({

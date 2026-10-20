@@ -113,8 +113,22 @@ const migrateToCatalog = (db: Database): void => {
   `)
 }
 
+// v2: an optional caller-supplied key, so a job that posts entries can retry or
+//  re-run without duplicating them. the unique index skips NULLs, so entries
+//  without one never collide
+const addExternalId = (db: Database): void => {
+  const columns = db.query<{ name: string }, []>(`PRAGMA table_info(entries)`).all()
+  if (!columns.some((c) => c.name === 'external_id')) {
+    db.exec(`ALTER TABLE entries ADD COLUMN external_id TEXT`)
+  }
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_external_id
+      ON entries(external_id) WHERE external_id IS NOT NULL
+  `)
+}
+
 // ordered schema migrations, tracked in PRAGMA user_version; each runs once
-const MIGRATIONS = [migrateToCatalog]
+const MIGRATIONS = [migrateToCatalog, addExternalId]
 
 export const initSchema = (db: Database): void => {
   createTables(db)

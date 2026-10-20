@@ -5,7 +5,7 @@ Personal timesheet tracker. Named for the Norn of obligation — fitting for bil
 
 ## What This Is
 
-A local-first web app replacing a manual Excel time tracker. A Bun/Elysia API server and a Vite/React client, as two workspaces of one Bun workspace root. In development they are two processes — the server on 3456, Vite on 5199 proxying `/api` to it. In deployment there is one process: the server serves the built client from `client/dist` alongside the API on 3456. Data lives in a SQLite file on disk. No auth, no external cloud dependency — but the app is also deployed on the home network, not localhost-only: a built copy runs at `skuld.home.vorheim.com` (via Caddy) from a clone at `~/app/skuld`, managed by the `com.mickey.skuld` launchd job. Development happens in `~/dev/skuld` (this repo); the deployed clone is separate. The dev server and the deployed job share port 3456 and so cannot run at once. See `deploy/README.md` for the deploy process, [AGENTS.md](AGENTS.md) for the agent-facing deployment command, prerequisites, and authorization rules, and `~/app/service-registry.yaml` for the full home-service inventory.
+A local-first web app replacing a manual Excel time tracker. A Bun/Elysia API server and a Vite/React client, as two workspaces of one Bun workspace root. In development they are two processes — the server on 3456, Vite on 5199 proxying `/api` to it. In deployment there is one process: the server serves the built client from `client/dist` alongside the API on 3456. Data lives in a SQLite file on disk. No auth, no external cloud dependency — but the app is also deployed on the home network, not localhost-only: a built copy runs at `skuld.home.vorheim.com` (via Caddy) from a clone at `~/app/skuld`, managed by the `com.mickey.skuld` launchd job. Development happens in `~/dev/skuld` (this repo); the deployed clone is separate. The dev server and the deployed job share port 3456 and so cannot run at once. The full HTTP API, written for agents that read and write timesheet data, is documented in [docs/api.md](docs/api.md). See `deploy/README.md` for the deploy process, [AGENTS.md](AGENTS.md) for the agent-facing deployment command, prerequisites, and authorization rules, and `~/app/service-registry.yaml` for the full home-service inventory.
 
 ## Tech Stack
 
@@ -33,6 +33,8 @@ skuld/
   .gitignore
   CLAUDE.md
   spec.md                   ← full project spec, the source of truth
+  docs/
+    api.md                  ← HTTP API reference, written for reporting agents
   deploy/                   ← launchd plist, Caddy snippet, deploy script, runbook
   server/
     package.json
@@ -42,6 +44,9 @@ skuld/
       config.ts             ← env-driven host/port/db path/client dist
       schema.ts             ← tables and versioned migrations (PRAGMA user_version)
       db.ts                 ← SQLite setup, entry query helpers
+      summary.ts            ← /api/summary and /api/weeks rollups
+      dateKeys.ts           ← calendar math on YYYY-MM-DD day keys
+      tickets.ts            ← port of the client's ticket split/dedupe rules
       catalog.ts            ← clients, projects, settings
       static.ts             ← serves client/dist in deployment
       rounding.ts           ← quarter-hour rounding logic
@@ -70,9 +75,10 @@ skuld/
 ## Key Business Rules
 
 1. **Rounding**: Start times floor to nearest 15 min, end times ceil. Server-side, non-negotiable.
-2. **Overlap flagging**: Overlaps are saved, not rejected; entries can be entered in any order and reconciled after. The day view marks double-booked time with a red "overlap" separator, mirroring the "gap" separator. The only time validation left server-side is that end must be after start (HTTP 400).
+2. **Overlap flagging**: Overlaps are saved, not rejected; entries can be entered in any order and reconciled after. The day view marks double-booked time with a red "overlap" separator, mirroring the "gap" separator. The server's only checks on an entry's times are that `date` is a `YYYY-MM-DD` key, the timestamps parse, and end is after start (each HTTP 400). Totals double-count overlapping time on purpose; `/api/summary` and `/api/weeks` report it separately as `overlapMinutes`.
 3. **Duration**: Always computed, never stored. `(ended_at - started_at) / 60000` = minutes.
 4. **Clients and projects**: managed records (code, name, active, order) edited on the Settings page; PC and WB are seeded as standing clients. Entries still store the client code and project name as text, and the server keeps the catalog in step with them. Copy/export labels a row `Client Name - Project`, falling back to the code.
+5. **Idempotent writes**: an entry may carry a caller-chosen `externalId`, unique across entries. A `POST /api/entries` repeating one updates that entry in place instead of inserting; a `PUT` claiming one another entry holds is a 409. The web UI never sets it.
 
 ## Running
 
@@ -93,7 +99,7 @@ bun test server client
 
 ## Common Tasks
 
-- **Add a new API route**: Define handler in `server/src/routes.ts`, types in `server/src/types.ts`
+- **Add a new API route**: Define handler in `server/src/routes.ts`, types in `server/src/types.ts`, and document it in `docs/api.md`
 - **Add a new component**: Create in `client/src/components/`, plain CSS in `styles.css`
 - **Change the schema**: New tables go in `createTables` in `server/src/schema.ts`; changes to existing data go in a new entry at the end of its `MIGRATIONS` list, which runs once per database. Delete `server/skuld.db` to recreate from scratch during dev.
 

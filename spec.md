@@ -1,7 +1,7 @@
 <!-- spec.md -->
 # Skuld — Project Spec
 
-Personal time tracking app named for the Norn of obligation. Replaces a manual Excel spreadsheet. Runs locally on macOS. Two processes (Vite dev server + Bun API server) communicating over HTTP.
+Personal time tracking app named for the Norn of obligation. Replaces a manual Excel spreadsheet. Runs on macOS, local-first, with no auth and no cloud dependency. In development it is two processes, the Vite dev server (5199) proxying `/api` to the Bun API server (3456). In deployment it is one: a separate clone at `~/app/skuld`, supervised by launchd (`com.mickey.skuld`), runs the Bun server on 3456, which serves the built client from `client/dist` alongside the API, and Caddy fronts it on the home network at `skuld.home.vorheim.com`. The dev server and the deployed job share port 3456, so they can't run at once. `deploy/README.md` and `AGENTS.md` cover deploying.
 
 ---
 
@@ -14,7 +14,7 @@ Personal time tracking app named for the Norn of obligation. Replaces a manual E
 - Every file starts with a comment containing its path relative to project root: `// server/src/db.ts`
 - Prefer `const` arrow functions for named function expressions
 - Use template literals over string concatenation
-- Use pnpm as the package manager — not npm or yarn
+- Use bun as the package manager and runtime (`bun install`, `bun run`) — not npm, yarn, or pnpm. The workspace root owns `bun.lock` for both workspaces
 
 ---
 
@@ -24,7 +24,7 @@ Personal time tracking app named for the Norn of obligation. Replaces a manual E
 - **Runtime**: Bun
 - **Framework**: ElysiaJS
 - **Database**: `bun:sqlite` (Bun's built-in SQLite binding)
-- **Port**: 3456
+- **Port**: 3456 (`SKULD_HOST`, `SKULD_PORT`, and `SKULD_DB` override the host, port, and database path; see `server/src/config.ts`)
 
 ### Client
 - **Bundler**: Vite
@@ -50,11 +50,14 @@ CREATE TABLE IF NOT EXISTS entries (
   ticket TEXT NOT NULL DEFAULT '',   -- optional short ref, e.g. 'RES-1113' or '2280'
   client TEXT NOT NULL,
   project TEXT NOT NULL DEFAULT '',  -- optional; belongs to the entry's client
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  external_id TEXT                   -- optional caller-chosen idempotency key (migration v2)
 );
 
 CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
 CREATE INDEX IF NOT EXISTS idx_entries_client ON entries(client);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_external_id
+  ON entries(external_id) WHERE external_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +86,7 @@ The SQLite file lives at `server/skuld.db` and is gitignored. The schema lives i
 
 Entries still name their client by code and their project by name, as text. The catalog is kept in step with them: saving an entry with a client or project the catalog doesn't have adds it (so the form's "Other…" fields keep working, though a new code must be 1–3 letters), names are canonicalized to the catalog's casing, and renaming a client code or a project in Settings rewrites the entries that used the old one.
 
-Schema migrations are versioned with `PRAGMA user_version` and each runs once. Version 1 created the catalog: it seeded the standing clients (PC "PortCity Logistics", WB "Willow Bridge Properties") and the standing project (PC "Dispatch Intelligence Platform II"), added every client and client/project pair already on entries, ordered both alphabetically, and stripped a client's own `"<name> - "` prefix from its entries' projects, since the export now adds that itself.
+Schema migrations are versioned with `PRAGMA user_version` and each runs once. Version 1 created the catalog: it seeded the standing clients (PC "PortCity Logistics", WB "Willow Bridge Properties") and the standing project (PC "Dispatch Intelligence Platform II"), added every client and client/project pair already on entries, ordered both alphabetically, and stripped a client's own `"<name> - "` prefix from its entries' projects, since the export now adds that itself. Version 2 added the nullable `external_id` column and its unique index, which skips NULLs so entries without a key never collide. A fresh database is created by `createTables` without `external_id` and then runs every migration from version 0, so it gets the column the same way an upgraded one does.
 
 ---
 
@@ -113,7 +116,9 @@ Each is rendered as a separator between the two rows: a dashed "Xh Ym gap" in di
 
 Overlapping time is **deliberately double-counted** in the day and week totals—do not "fix" this. On time-and-materials work, orchestrating agents across two clients' tasks simultaneously can legitimately bill the same slot twice, so the totals must reflect it. The red marker exists to surface an overlap for review, not to declare it wrong; the common case is simply that it's easier to save one entry and adjust the other than to edit them in a prescribed order.
 
-The only time validation remaining server-side is that end must be after start, which returns HTTP 400.
+The only checks on an entry's times server-side are that `date` is a real `YYYY-MM-DD` day key, that `startedAt` and `endedAt` parse as timestamps, and that end is after start; each failure returns HTTP 400.
+
+The reporting routes (`/api/summary`, `/api/weeks`) keep the double-counted totals and report alongside them `overlapMinutes`: the minutes a day's summed durations exceed the time its entries actually cover. This differs from the day view's overlap markers, which measure each entry against the furthest end before it and so can exceed the entry's own length; the markers locate an overlap, while `overlapMinutes` says how much a total is inflated.
 
 ### Duration math
 
@@ -123,23 +128,34 @@ Duration in minutes = `(Date(ended_at) - Date(started_at)) / 60000`. All summari
 
 ## API Routes
 
-All routes are prefixed with `/api`.
+All routes are prefixed with `/api`. [docs/api.md](docs/api.md) is the full reference, with exact request and response shapes, examples, and error bodies; this section summarizes behavior.
+
+Errors are `{ error }` with a 400, 404, or 409 status. A request that doesn't match a route's schema (a missing field or query parameter, a wrong type, a body that isn't JSON) is 400 `Invalid request body`.
+
+### `GET /api/health`
+Returns `{ ok: true, service: 'skuld', time }`; the deploy script polls it.
 
 ### `GET /api/entries?from=YYYY-MM-DD&to=YYYY-MM-DD`
-Returns entries in the date range (inclusive), ordered by `date, started_at`.
+Returns entries in the date range (inclusive), ordered by `date, started_at`. An optional `externalId` parameter narrows the range to the entry carrying that key.
 
 ### `POST /api/entries`
-Body: `{ date, startedAt, endedAt, note, ticket, client, project }` (`project` optional, defaults to empty)
-Applies rounding, inserts, returns the created entry (with rounded times). Overlaps are permitted.
+Body: `{ date, startedAt, endedAt, note, ticket, client, project, externalId }` (`note`, `ticket`, `project` optional, defaulting to empty; `externalId` optional)
+Applies rounding, inserts, returns the created entry (with rounded times). Overlaps are permitted. When `externalId` is given and an entry already has it, that entry is updated in place with the posted fields (rounded and validated the same way) and returned instead, so a retried or re-run job never adds a second row. A blank `externalId` counts as none.
 
 ### `PUT /api/entries/:id`
-Body: any subset of `{ date, startedAt, endedAt, note, ticket, client, project }`
-Merges with existing values, applies rounding, updates, returns the updated entry. Overlaps are permitted.
+Body: any subset of `{ date, startedAt, endedAt, note, ticket, client, project, externalId }` (`externalId` may be `null` to clear it)
+Merges with existing values, applies rounding, updates, returns the updated entry. Overlaps are permitted. An `externalId` another entry already has returns 409.
 
 ### `DELETE /api/entries/:id`
 Deletes the entry. Returns `{ deleted: true }`.
 
 `POST` and `PUT` canonicalize `client` and `project` through the catalog, adding either when new (see Data Model). A new client code that isn't 1–3 letters returns 400.
+
+### `GET /api/summary?from=YYYY-MM-DD&to=YYYY-MM-DD`
+Totals over the inclusive range for a reporting agent: a grand total and per-client totals over the range, then each day that has entries, broken down by client and then project. Every level carries minutes and hours (2 decimals) and an entry count; days carry `overlapMinutes`; clients and projects carry their distinct tickets, split and deduped by the same rules as the day-copy dialog (`splitTickets`, `buildTicketList`, ported to `server/src/tickets.ts`); projects carry their non-blank notes in start order. Clients and projects follow catalog order. 400 for a malformed date or `from` after `to`.
+
+### `GET /api/weeks?count=N&before=YYYY-MM-DD&includeCurrent=true`
+The `count` (default 2, capped at 12) complete Sunday–Saturday weeks ending before the week containing `before` (default: the server's local today), oldest first; `includeCurrent=true` appends the week containing `before`. Each week carries its totals (computed by the summary helper) and all seven days, each with its full entries, empty days included. Week boundaries are computed from day keys alone. 400 for a count that isn't a positive integer, a malformed `before`, or an `includeCurrent` other than `true`/`false`.
 
 ### `GET /api/clients`
 Returns every client, active or not, as `{ id, code, name, active, ordinal }[]` in ordinal order.
@@ -234,6 +250,8 @@ skuld/
   .gitignore
   CLAUDE.md
   spec.md
+  docs/
+    api.md                  ← HTTP API reference for agents
   server/
     package.json
     tsconfig.json
@@ -242,6 +260,9 @@ skuld/
       schema.ts             ← tables and versioned migrations
       db.ts                 ← SQLite setup, entry query helpers
       catalog.ts            ← clients, projects, settings
+      summary.ts            ← summary and weeks rollups
+      dateKeys.ts           ← calendar math on YYYY-MM-DD day keys
+      tickets.ts            ← server port of the client's ticket rules
       rounding.ts           ← floorToQuarter, ceilToQuarter functions
       routes.ts             ← all route handlers
       types.ts              ← shared types (Entry, CreateEntryInput, etc.)
@@ -252,7 +273,7 @@ skuld/
     index.html
     src/
       main.tsx
-      App.tsx
+      app.tsx
       api.ts                ← fetch helpers
       dates.ts              ← date formatting/math utilities
       weekExport.ts         ← week export rows and clipboard text
@@ -270,21 +291,23 @@ skuld/
 
 ---
 
-## Phase 1: Server
+## Phase 1: Server — complete
+
+Kept as a record of the original build order; [Project Structure](#project-structure) lists the files as they are now, including ones added since (`config.ts`, `static.ts`, `schema.ts`, `catalog.ts`, `summary.ts`, and others).
 
 Set up the Bun + Elysia server with all API routes, database, and rounding logic. Verify with manual curl commands.
 
 Files to create:
 
 1. Root `package.json` with `dev` script using concurrently
-2. Root `.gitignore` (node_modules, *.db, dist)
-3. `server/package.json` with elysia dependency
-4. `server/tsconfig.json`
-5. `server/src/types.ts`
-6. `server/src/rounding.ts`
-7. `server/src/db.ts`
-9. `server/src/routes.ts`
-10. `server/src/index.ts`
+1. Root `.gitignore` (node_modules, *.db, dist)
+1. `server/package.json` with elysia dependency
+1. `server/tsconfig.json`
+1. `server/src/types.ts`
+1. `server/src/rounding.ts`
+1. `server/src/db.ts`
+1. `server/src/routes.ts`
+1. `server/src/index.ts`
 
 After creating all files, run the server and test with curl:
 
@@ -297,25 +320,27 @@ After creating all files, run the server and test with curl:
 
 ---
 
-## Phase 2: Client
+## Phase 2: Client — complete
+
+Kept as a record of the original build order; [Project Structure](#project-structure) lists the files as they are now, including the components added since.
 
 Set up Vite + React + TypeScript. Build all components and styles. Wire up to the API via the Vite proxy.
 
 Files to create:
 
 1. `client/package.json`
-2. `client/tsconfig.json`
-3. `client/vite.config.ts` (proxy `/api` to `localhost:3456`)
-4. `client/index.html` (with Google Fonts link)
-5. `client/src/main.tsx`
-6. `client/src/api.ts`
-7. `client/src/dates.ts`
-8. `client/src/styles.css`
-9. `client/src/App.tsx`
-10. `client/src/components/WeekSummary.tsx`
-11. `client/src/components/DaySection.tsx`
-12. `client/src/components/EntryRow.tsx`
-13. `client/src/components/EntryForm.tsx`
+1. `client/tsconfig.json`
+1. `client/vite.config.ts` (proxy `/api` to `localhost:3456`)
+1. `client/index.html` (with Google Fonts link)
+1. `client/src/main.tsx`
+1. `client/src/api.ts`
+1. `client/src/dates.ts`
+1. `client/src/styles.css`
+1. `client/src/app.tsx`
+1. `client/src/components/WeekSummary.tsx`
+1. `client/src/components/DaySection.tsx`
+1. `client/src/components/EntryRow.tsx`
+1. `client/src/components/EntryForm.tsx`
 
 After creating all files, install dependencies and run both servers. Verify the full flow in the browser: navigate weeks, add entries, see rounding previews, confirm overlaps save and show the red overlap marker, check daily/weekly summaries.
 
@@ -323,7 +348,7 @@ After creating all files, install dependencies and run both servers. Verify the 
 
 ## Future Enhancements (not in scope now)
 
-- Export to TSV/XLSX matching company spreadsheet format
+- Export to an XLSX file matching the company spreadsheet format (the day-copy dialog and week export already copy tab-separated rows shaped for it to the clipboard)
 - Keyboard shortcuts (n = new entry, e = edit focused, etc.)
 - Running timer mode as an alternative to manual entry
 - Week-over-week comparison view

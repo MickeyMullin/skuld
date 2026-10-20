@@ -86,7 +86,7 @@ describe('initSchema', () => {
       name: 'Renamed',
       ordinal: 5,
     })
-    expect(db.query(`PRAGMA user_version`).get()).toEqual({ user_version: 1 })
+    expect(db.query(`PRAGMA user_version`).get()).toEqual({ user_version: 2 })
   })
 
   test('creates a fresh database with the standing clients and project', () => {
@@ -96,5 +96,37 @@ describe('initSchema', () => {
     expect(projects(db)).toEqual([
       { client: 'PC', name: 'Dispatch Intelligence Platform II', ordinal: 0 },
     ])
+  })
+
+  test('adds externalId to a database that already has rows', () => {
+    const db = legacyDatabase([
+      { client: 'PC', project: '' },
+      { client: 'WB', project: '' },
+    ])
+    // already past the catalog migration, so only the externalId one is left to run
+    db.exec(`PRAGMA user_version = 1`)
+    initSchema(db)
+    expect(db.query(`PRAGMA user_version`).get()).toEqual({ user_version: 2 })
+    expect(db.query(`SELECT id, client, external_id FROM entries ORDER BY id`).all()).toEqual([
+      { id: 1, client: 'PC', external_id: null },
+      { id: 2, client: 'WB', external_id: null },
+    ])
+
+    // the index is unique, but only over entries that have one
+    const tag = db.query<null, [string | null, number]>(`UPDATE entries SET external_id = ? WHERE id = ?`)
+    tag.run('job:1', 1)
+    expect(() => tag.run('job:1', 2)).toThrow('UNIQUE constraint failed')
+    tag.run(null, 2)
+    db.exec(`INSERT INTO entries (date, started_at, ended_at, client) VALUES ('2026-08-10', 'a', 'b', 'PC')`)
+    expect(db.query(`SELECT COUNT(*) AS n FROM entries WHERE external_id IS NULL`).get()).toEqual({ n: 2 })
+  })
+
+  test('a fresh database gets the externalId column and index', () => {
+    const db = new Database(':memory:')
+    initSchema(db)
+    const columns = db.query<{ name: string }, []>(`PRAGMA table_info(entries)`).all()
+    expect(columns.map((c) => c.name)).toContain('external_id')
+    const indexes = db.query<{ name: string; unique: number; partial: number }, []>(`PRAGMA index_list(entries)`).all()
+    expect(indexes.find((i) => i.name === 'idx_entries_external_id')).toMatchObject({ unique: 1, partial: 1 })
   })
 })

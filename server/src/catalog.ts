@@ -4,6 +4,7 @@
 
 import { db } from './db'
 import {
+  isUniqueViolation,
   requestError,
   rowToClient,
   rowToProject,
@@ -30,9 +31,6 @@ const normalizeProjectName = (raw: string): string => {
   if (!name) throw requestError(400, 'Project name is required')
   return name
 }
-
-const isUniqueViolation = (err: unknown): boolean =>
-  err instanceof Error && /UNIQUE constraint failed/.test(err.message)
 
 // --- clients
 

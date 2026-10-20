@@ -15,8 +15,17 @@ import {
   updateProject,
   updateSettings,
 } from './catalog'
-import { deleteEntry, getEntryById, insertEntry, listEntriesInRange, updateEntry } from './db'
+import {
+  deleteEntry,
+  getEntryByExternalId,
+  getEntryById,
+  insertEntry,
+  listEntriesInRange,
+  updateEntry,
+} from './db'
+import { isDateKey } from './dateKeys'
 import { ceilToQuarter, floorToQuarter } from './rounding'
+import { getSummary, getWeeks } from './summary'
 import { isRequestError } from './types'
 
 // runs a handler, turning a RequestError into its status and message
@@ -32,6 +41,18 @@ const guard = <T,>(set: { status?: number | string }, fn: () => T): T | { error:
 
 const idParams = t.Object({ id: t.Numeric() })
 
+// the field errors rounding can't get past; null when the entry's times are usable
+const entryFieldError = (date: string, startedAt: string, endedAt: string): string | null => {
+  if (!isDateKey(date)) return 'date must be a YYYY-MM-DD date'
+  if (Number.isNaN(Date.parse(startedAt))) return 'startedAt must be an ISO 8601 timestamp'
+  if (Number.isNaN(Date.parse(endedAt))) return 'endedAt must be an ISO 8601 timestamp'
+  return null
+}
+
+// a blank externalId is no key at all
+const normalizeExternalId = (raw: string | null | undefined): string | null =>
+  raw?.trim() || null
+
 // overlaps are allowed through and flagged in the UI instead, so entries can be
 //  saved in any order and reconciled afterwards
 export const routes = new Elysia({ prefix: '/api' })
@@ -39,18 +60,35 @@ export const routes = new Elysia({ prefix: '/api' })
   .get(
     '/entries',
     ({ query }) => {
-      return listEntriesInRange(query.from, query.to)
+      return listEntriesInRange(query.from, query.to, normalizeExternalId(query.externalId) ?? undefined)
     },
     {
       query: t.Object({
         from: t.String(),
         to: t.String(),
+        externalId: t.Optional(t.String()),
       }),
     },
   )
+  .get('/summary', ({ query, set }) => guard(set, () => getSummary(query.from, query.to)), {
+    query: t.Object({ from: t.String(), to: t.String() }),
+  })
+  .get('/weeks', ({ query, set }) => guard(set, () => getWeeks(query)), {
+    query: t.Object({
+      count: t.Optional(t.String()),
+      before: t.Optional(t.String()),
+      includeCurrent: t.Optional(t.String()),
+    }),
+  })
   .post(
     '/entries',
     ({ body, set }) => {
+      const fieldError = entryFieldError(body.date, body.startedAt, body.endedAt)
+      if (fieldError) {
+        set.status = 400
+        return { error: fieldError }
+      }
+
       const startedAt = floorToQuarter(body.startedAt)
       const endedAt = ceilToQuarter(body.endedAt)
 
@@ -61,7 +99,7 @@ export const routes = new Elysia({ prefix: '/api' })
 
       return guard(set, () => {
         const client = ensureClient(body.client)
-        return insertEntry({
+        const params = {
           date: body.date,
           startedAt,
           endedAt,
@@ -69,7 +107,12 @@ export const routes = new Elysia({ prefix: '/api' })
           ticket: body.ticket ?? '',
           client,
           project: ensureProject(client, body.project ?? ''),
-        })
+          externalId: normalizeExternalId(body.externalId),
+        }
+        // a repeated externalId replaces the entry it already names, so a
+        //  retried or re-run job leaves one row rather than two
+        const existing = params.externalId ? getEntryByExternalId(params.externalId) : null
+        return existing ? updateEntry(existing.id, params) : insertEntry(params)
       })
     },
     {
@@ -81,6 +124,7 @@ export const routes = new Elysia({ prefix: '/api' })
         ticket: t.Optional(t.String()),
         client: t.String(),
         project: t.Optional(t.String()),
+        externalId: t.Optional(t.String()),
       }),
     },
   )
@@ -102,6 +146,14 @@ export const routes = new Elysia({ prefix: '/api' })
         ticket: body.ticket ?? existing.ticket,
         client: body.client ?? existing.client,
         project: body.project ?? existing.project,
+        externalId:
+          body.externalId === undefined ? existing.externalId : normalizeExternalId(body.externalId),
+      }
+
+      const fieldError = entryFieldError(merged.date, merged.startedAt, merged.endedAt)
+      if (fieldError) {
+        set.status = 400
+        return { error: fieldError }
       }
 
       const startedAt = floorToQuarter(merged.startedAt)
@@ -122,6 +174,7 @@ export const routes = new Elysia({ prefix: '/api' })
           ticket: merged.ticket,
           client,
           project: ensureProject(client, merged.project),
+          externalId: merged.externalId,
         })
       })
     },
@@ -135,6 +188,7 @@ export const routes = new Elysia({ prefix: '/api' })
         ticket: t.Optional(t.String()),
         client: t.Optional(t.String()),
         project: t.Optional(t.String()),
+        externalId: t.Optional(t.Nullable(t.String())),
       }),
     },
   )
