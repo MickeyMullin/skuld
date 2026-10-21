@@ -321,16 +321,20 @@ The 225 minutes include the 15 double-booked ones; the entries cover 210 minutes
 
 ## Writing review notes
 
-A note is a list of tasks separated by `, `. When the user copies a day for the timesheet, every review task across that client's notes for the day is merged into one, so a day of scattered reviews exports as a single `Review PRs 871–2, 884, 910–11, 917–25, 927–8, 930` rather than six separate tasks. For that to work, write a review as a task of its own in exactly this form:
+A note is a list of tasks separated by `, `. When the user copies a day for the timesheet, two kinds of PR task are each merged across that client's notes for the day: reviewing PRs, and addressing review findings on PRs. A day of scattered reviews exports as a single `Review PRs 871–2, 884, 910–11, 917–25, 927–8, 930` rather than six separate tasks, and its follow-ups as a single `Address review findings on PRs 925–6, 929`. For that to work, write each as a task of its own in exactly one of these forms:
 
-- `Review PR 924` for one PR, `Review PRs 884, 910, 911` for several.
+- `Review PR 924` for one PR, `Review PRs 884, 910, 911` for several: reviewing someone else's PR.
+- `Address review findings on PR 938`, `Address review findings on PRs 925, 926, 929`: fixing your own PRs after a review.
+
+In both:
+
 - PR numbers in full, ascending, separated by `, `. Don't abbreviate them into ranges; the export does that.
-- Nothing else inside the review task: no qualifier such as `prettier fix`, `(stack)`, or `second round`. A re-review is just `Review PR 924` again, and the export dedupes it.
+- Nothing else inside the task: no qualifier such as `prettier fix`, `(stack)`, or `second round`. Doing it again for the same PR is just `Review PR 924` again, and the export dedupes it.
 - Other work goes in its own task in the same note, before or after: `Dependabot sweep, Review PRs 871, 872`, or `Review PRs 927, 930, Address review findings on PRs 925, 926, 929`.
 
-Only reviewing someone's PR is a review task. Work on your own PRs (`GPS refresh ETL fixes, PRs 925, 926`, `Address review findings on PRs 925, 926`) is ordinary text and stays as written. A review task that doesn't fit the form (`Review PR 924 prettier fix`) isn't lost, but it is listed on its own as typed instead of merging.
+Other work on your own PRs (`GPS refresh ETL fixes, PRs 925, 926`) is ordinary text and stays as written. A task that doesn't fit its form (`Review PR 924 prettier fix`) isn't lost, but it is listed on its own as typed instead of merging.
 
-The export also reads ranges, which hand-entered notes use (`Review PRs 723–25, 730–31`), and accepts `Reviewed` for `Review`. `GET /api/summary` returns notes exactly as written, unmerged.
+The export also reads ranges, which hand-entered notes use (`Review PRs 723–25, 730–31`), and accepts `Reviewed` for `Review`, `Addressed` for `Address`, and `for` for `on`. `GET /api/summary` returns notes exactly as written, unmerged.
 
 ## Idempotent writes with externalId
 

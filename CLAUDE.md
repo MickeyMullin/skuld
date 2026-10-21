@@ -80,7 +80,7 @@ skuld/
 3. **Duration**: Always computed, never stored. `(ended_at - started_at) / 60000` = minutes.
 4. **Clients and projects**: managed records (code, name, active, order) edited on the Settings page; PC and WB are seeded as standing clients. Entries still store the client code and project name as text, and the server keeps the catalog in step with them. Copy/export labels a row `Client Name - Project`, falling back to the code.
 5. **Idempotent writes**: an entry may carry a caller-chosen `externalId`, unique across entries. A `POST /api/entries` repeating one updates that entry in place instead of inserting; a `PUT` claiming one another entry holds is a 409. The web UI never sets it.
-6. **Review merge**: day copy and week export merge every `Review PR(s) …` task in a client's day into one `Review PRs …` task with ranged numbers (`871–2, 884, 910–11`), in `buildTaskList` in `client/src/tasks.ts`. The note convention agents must follow is in [docs/api.md](docs/api.md#writing-review-notes).
+6. **PR task merge**: day copy and week export merge every `Review PR(s) …` task in a client's day into one `Review PRs …` task with ranged numbers (`871–2, 884, 910–11`), and likewise every `Address review findings on PR(s) …` task, in `buildTaskList` in `client/src/tasks.ts` (its `PR_TASKS` list holds the kinds). The note convention agents must follow is in [docs/api.md](docs/api.md#writing-review-notes).
 
 ## Running
 

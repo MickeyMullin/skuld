@@ -51,11 +51,30 @@ describe('buildTaskList', () => {
       ]),
     ).toEqual([
       'Standup',
-      'Address review findings on PRs 925, 926, 929',
+      'Address review findings on PRs 925–6, 929',
       'Dependabot sweep',
       'GPS refresh ETL fixes, PRs 925, 926, 928, 930',
       'Review PRs 871–2, 884, 910–11, 917–25, 927–8, 930',
       'Review-file cleanup',
+    ])
+  })
+
+  test('merges address-findings tasks the same way, apart from reviews', () => {
+    expect(
+      buildTaskList([
+        'Review PR 937, Address review findings on PR 938',
+        'Review PRs 931, 934, Address review findings on PR 931',
+        'Addressed review findings for PRs 932, 933',
+      ]),
+    ).toEqual([
+      'Address review findings on PRs 931–3, 938',
+      'Review PRs 931, 934, 937',
+    ])
+  })
+
+  test('a lone address-findings PR stays singular', () => {
+    expect(buildTaskList(['Address review findings on PR 938'])).toEqual([
+      'Address review findings on PR 938',
     ])
   })
 
@@ -81,10 +100,12 @@ describe('buildTaskList', () => {
         'Review PR 924 prettier fix',
         'Review PRs 717, 720, 726 (stack)',
         'Review dependabot PRs 680–688',
+        'Address review findings on PR 925 (lint only)',
         'Drizzle schema management review',
         'Hot loads not yet available, awaiting-availability counts (PR 908)',
       ]),
     ).toEqual([
+      'Address review findings on PR 925 (lint only)',
       'Drizzle schema management review',
       'Hot loads not yet available, awaiting-availability counts (PR 908)',
       'Review dependabot PRs 680–688',

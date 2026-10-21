@@ -18,7 +18,16 @@ const distinctValues = (values: string[]): string[] => {
 // an inclusive run of PR numbers; a single PR is a run of one
 type PrRun = { start: number; end: number }
 
-const REVIEW_LEAD = /^review(?:ed)?\s+prs?\s+(.+)$/i
+// the kinds of PR task merged across a day, each read by its lead and written
+//  back as '<label> PR(s) <refs>'
+const PR_TASKS = [
+  { lead: /^review(?:ed)?\s+prs?\s+(.+)$/i, label: 'Review' },
+  {
+    lead: /^address(?:ed)?\s+review\s+findings\s+(?:on|for)\s+prs?\s+(.+)$/i,
+    label: 'Address review findings on',
+  },
+]
+
 const PR_REF = /^(\d+)(?:\s*[–-]\s*(\d+))?$/
 
 // one PR ref, '924' or a range '938–41' whose end may drop the leading digits
@@ -33,18 +42,20 @@ const parsePrRef = (raw: string): PrRun | null => {
   return end >= start ? { start, end } : null
 }
 
-// split one note into its review runs and its other tasks. a review task is a
-//  comma-separated segment 'Review PR(s) <ref>' plus the bare refs that follow
-//  it, so 'Dependabot sweep, Review PRs 871, 872' gives runs for 871 and 872 and
-//  the task 'Dependabot sweep'. text between review tasks stays one task as
-//  typed; anything that breaks the pattern, like 'Review PR 924 prettier fix'
-//  or 'Review PRs 720, 726 (stack)', is left as ordinary text rather than dropped
-const splitReviews = (note: string): { runs: PrRun[]; tasks: string[] } => {
-  const runs: PrRun[] = []
+// split one note into its PR tasks' runs, by kind, and its other tasks. a PR
+//  task is a comma-separated segment such as 'Review PR(s) <ref>' plus the bare
+//  refs that follow it, so 'Dependabot sweep, Review PRs 871, 872' gives review
+//  runs for 871 and 872 and the task 'Dependabot sweep'. text between PR tasks
+//  stays one task as typed; anything that breaks the pattern, like 'Review PR
+//  924 prettier fix' or 'Review PRs 720, 726 (stack)', is left as ordinary text
+//  rather than dropped
+const splitPrTasks = (note: string): { runs: PrRun[][]; tasks: string[] } => {
+  const runs: PrRun[][] = PR_TASKS.map(() => [])
   const tasks: string[] = []
   let chunk: string[] = []
-  let pending: { segments: string[]; runs: PrRun[] } | null = null
-  // a review task ending cleanly is taken out; one running into a segment that
+  let found = false
+  let pending: { kind: number; segments: string[]; runs: PrRun[] } | null = null
+  // a PR task ending cleanly is taken out; one running into a segment that
   //  starts like a ref but isn't one goes back into the text whole
   const settle = (next: string | null) => {
     if (!pending) return
@@ -53,7 +64,8 @@ const splitReviews = (note: string): { runs: PrRun[]; tasks: string[] } => {
     } else {
       if (chunk.length) tasks.push(chunk.join(', '))
       chunk = []
-      runs.push(...pending.runs)
+      runs[pending.kind].push(...pending.runs)
+      found = true
     }
     pending = null
   }
@@ -65,15 +77,15 @@ const splitReviews = (note: string): { runs: PrRun[]; tasks: string[] } => {
       continue
     }
     settle(segment)
-    const lead = REVIEW_LEAD.exec(segment)
-    const run = lead ? parsePrRef(lead[1]) : null
-    if (run) pending = { segments: [segment], runs: [run] }
+    const kind = PR_TASKS.findIndex(({ lead }) => lead.test(segment))
+    const run = kind >= 0 ? parsePrRef(PR_TASKS[kind].lead.exec(segment)![1]) : null
+    if (run) pending = { kind, segments: [segment], runs: [run] }
     else chunk.push(segment)
   }
   settle(null)
   if (chunk.length) tasks.push(chunk.join(', '))
-  // a note with no review task is kept exactly as typed
-  return runs.length ? { runs, tasks } : { runs, tasks: [note] }
+  // a note with no PR task is kept exactly as typed
+  return found ? { runs, tasks } : { runs, tasks: [note] }
 }
 
 // a range's end shortened to the digits that differ from its start, keeping
@@ -103,23 +115,24 @@ export const prRefListString = (runs: PrRun[]): string => {
     .join(', ')
 }
 
-// the day's review tasks merged into one, 'Review PRs 884, 910–11', or null
-const mergedReviewTask = (runs: PrRun[]): string | null => {
+// one kind's tasks across the day merged into one, 'Review PRs 884, 910–11',
+//  or null when the day has none
+const mergedPrTask = (label: string, runs: PrRun[]): string | null => {
   if (!runs.length) return null
   const single = runs.every((r) => r.start === runs[0].start && r.end === r.start)
-  return `Review ${single ? 'PR' : 'PRs'} ${prRefListString(runs)}`
+  return `${label} ${single ? 'PR' : 'PRs'} ${prRefListString(runs)}`
 }
 
 // build the deduped task list for a client's day, leading with Standup if
 //  present. every review task across the day's notes becomes one 'Review PRs'
-//  task with the numbers in order and consecutive runs shown as ranges
+//  task, and every address-findings task one 'Address review findings on PRs'
+//  task, each with the numbers in order and consecutive runs shown as ranges
 export const buildTaskList = (notes: string[]): string[] => {
-  const split = notes.map(splitReviews)
-  const review = mergedReviewTask(split.flatMap((s) => s.runs))
-  const tasks = distinctValues([
-    ...split.flatMap((s) => s.tasks),
-    ...(review ? [review] : []),
-  ])
+  const split = notes.map(splitPrTasks)
+  const merged = PR_TASKS.map(({ label }, kind) =>
+    mergedPrTask(label, split.flatMap((s) => s.runs[kind])),
+  ).filter((t): t is string => t !== null)
+  const tasks = distinctValues([...split.flatMap((s) => s.tasks), ...merged])
   const standup = tasks.find((t) => t.toLowerCase() === 'standup')
   if (!standup) return tasks
   return ['Standup', ...tasks.filter((t) => t !== standup)]
